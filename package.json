@@ -1,0 +1,22 @@
+{
+  "name": "estreamly-group-buying",
+  "version": "1.0.0",
+  "description": "Group buying landing page for eStreamly with video, referrals, and SMS",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "group-buying",
+    "ecommerce",
+    "video",
+    "referrals",
+    "twilio"
+  ],
+  "author": "eStreamly",
+  "license": "MIT"
+}

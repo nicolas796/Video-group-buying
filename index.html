@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Group Buying - eStreamly</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Upper Third: Video Player -->
+        <div class="video-section">
+            <video id="video-player" controls playsinline autoplay loop muted></video>
+            <div id="loading" class="loading">Loading video...</div>
+        </div>
+        
+        <!-- Bottom Two Thirds: Content -->
+        <div class="content-section" id="main-content">
+            <!-- Landing View -->
+            <div id="landing-view">
+                <!-- Join Box - AT THE TOP, NO SCROLLING -->
+                <div class="join-box">
+                    <h2>Join to unlock</h2>
+                    <form id="join-form">
+                        <div class="input-row">
+                            <div class="input-group half">
+                                <input type="tel" id="phone" placeholder="Cellphone" required>
+                            </div>
+                            <div class="input-group half">
+                                <input type="email" id="email" placeholder="Email" required>
+                            </div>
+                        </div>
+                        <button type="submit" class="join-btn">Unlock exclusive pricing</button>
+                    </form>
+                </div>
+                
+                <!-- Countdown (Limited Time Offer) -->
+                <div class="countdown-section landing">
+                    <p class="countdown-label">⏰ Limited time offer ends in:</p>
+                    <div class="countdown" id="countdown-landing">
+                        <span id="days-landing">00</span>d
+                        <span id="hours-landing">00</span>h
+                        <span id="minutes-landing">00</span>m
+                        <span id="seconds-landing">00</span>s
+                    </div>
+                </div>
+                
+                <!-- Social Proof -->
+                <div class="social-proof">
+                    <span class="buyer-pulse"></span>
+                    <span class="counter-inline"><span id="buyer-count">742</span> buyers already joined</span>
+                </div>
+                
+                <!-- Product & Progress - Compact -->
+                <div class="product-progress-compact">
+                    <div class="product-mini">
+                        <img id="product-img" src="" alt="Product">
+                        <div class="product-mini-info">
+                            <div class="product-name" id="product-name"></div>
+                            <div class="price-tag">
+                                <span class="initial-price" id="initial-price"></span>
+                                <span class="current-price" id="current-price">$80</span>
+                            </div>
+                        </div>
+                        <button class="info-btn" id="info-btn" onclick="toggleProductInfo()">
+                            <span class="chevron">⌄</span>
+                        </button>
+                    </div>
+                    
+                    <div class="progress-bar-container mini">
+                        <div class="progress-bar" id="progress-bar"></div>
+                    </div>
+                    <div class="unlocked-text" id="unlocked-price"></div>
+                    
+                    <!-- Expandable Product Description -->
+                    <div class="product-details" id="product-details">
+                        <div class="details-content">
+                            <h4>Product Details</h4>
+                            <p>Come in 3 size: Small - Medium - Large</p>
+                            <ul>
+                                <li>Made for Mig/Stick Welding</li>
+                                <li>Split cowhide leather</li>
+                                <li>Stitched with Kevlar® thread for strength and durability</li>
+                                <li>Cutshield™ P-aramid/steel/polyester liner</li>
+                                <li>Full leather index finger and inset thumb</li>
+                                <li>Gauntlet style cuff</li>
+                                <li>Snug-fitting shirred elastic wrist</li>
+                                <li>Meets ANSI/ISEA 105-2016 Heat level 2 and can withstand up to 140°C/284°F for at least 15 seconds</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Success View (Hidden initially) -->
+            <div id="success-view" class="hidden">
+                <div class="success-message">
+                    <h2>You're in! 🎉</h2>
+                    <p>Watch the price drop as more people join.</p>
+                </div>
+                
+                <!-- Referral Status -->
+                <div class="referral-status" id="referral-status">
+                    <div class="referral-progress" id="referral-progress">
+                        <p class="referral-title">🎁 Unlock Best Price Now!</p>
+                        <p class="referral-subtitle">Get 2 friends to join and unlock $<span id="best-price">20</span> immediately</p>
+                        <div class="referral-dots">
+                            <span class="dot" id="dot-1"></span>
+                            <span class="dot" id="dot-2"></span>
+                        </div>
+                        <p class="referral-count" id="referral-count">0 of 2 referrals</p>
+                    </div>
+                    <div class="referral-unlocked hidden" id="referral-unlocked">
+                        <p class="unlocked-title">🏆 Best Price Unlocked!</p>
+                        <p class="unlocked-price">You got $<span id="unlocked-price-value">20</span>!</p>
+                    </div>
+                </div>
+                
+                <!-- Progress Bar (carries over) -->
+                <div class="progress-section compact">
+                    <div class="product-display compact">
+                        <div class="product-image small">
+                            <img id="product-img-success" src="" alt="Product">
+                        </div>
+                        <div class="product-info">
+                            <div class="product-name small" id="product-name-success"></div>
+                        </div>
+                        <div class="price-display compact">
+                            <span class="initial-price small" id="initial-price-success"></span>
+                            <span class="current-price small" id="current-price-success"></span>
+                        </div>
+                    </div>
+                    
+                    <div class="counter small">
+                        <span id="buyer-count-success">742</span> buyers already joined
+                    </div>
+                    
+                    <div class="progress-bar-container">
+                        <div class="progress-bar" id="progress-bar-success"></div>
+                        <div class="tier-markers" id="tier-markers-success"></div>
+                    </div>
+                    
+                    <div class="tier-labels" id="tier-labels-success"></div>
+                </div>
+                
+                <!-- Countdown -->
+                <div class="countdown-section">
+                    <p class="countdown-label">Drop ends in:</p>
+                    <div class="countdown" id="countdown">
+                        <span id="days">00</span>d
+                        <span id="hours">00</span>h
+                        <span id="minutes">00</span>m
+                        <span id="seconds">00</span>s
+                    </div>
+                </div>
+                
+                <div class="share-section">
+                    <p>Share to unlock the best price!</p>
+                    <button class="share-btn" id="share-btn" onclick="shareReferral()">
+                        <span>📤 Share with friends</span>
+                    </button>
+                    <p class="referral-hint">2 friends join = instant $<span id="share-best-price">20</span> price</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <script src="app.js"></script>
+</body>
+</html>

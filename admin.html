@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Group Buying</title>
+    <link rel="stylesheet" href="admin.css">
+</head>
+<body>
+    <div class="admin-container">
+        <header>
+            <h1>🎯 Drop Admin</h1>
+            <p>Configure your group buying campaign</p>
+        </header>
+        
+        <form id="admin-form">
+            <!-- Product Section -->
+            <section class="form-section">
+                <h2>📦 Product</h2>
+                <div class="form-group">
+                    <label>Product Image URL</label>
+                    <input type="url" id="product-image" placeholder="https://...">
+                </div>
+                <div class="form-group">
+                    <label>Product Name</label>
+                    <input type="text" id="product-name" placeholder="Product name">
+                </div>
+                <div class="form-group">
+                    <label>Short Description</label>
+                    <textarea id="product-description" rows="3" placeholder="e.g., Come in 3 sizes"></textarea>
+                </div>
+            </section>
+            
+            <!-- Video Section -->
+            <section class="form-section">
+                <h2>🎥 Video</h2>
+                <div class="form-group">
+                    <label>m3u8 Video URL</label>
+                    <input type="url" id="video-source" placeholder="https://.../playlist.m3u8">
+                </div>
+            </section>
+            
+            <!-- Twilio SMS Section -->
+            <section class="form-section">
+                <h2>📱 Twilio SMS</h2>
+                <div class="form-group checkbox">
+                    <label>
+                        <input type="checkbox" id="twilio-enabled">
+                        Enable SMS notifications
+                    </label>
+                </div>
+                <div class="form-group">
+                    <label>Account SID</label>
+                    <input type="text" id="twilio-sid" placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx">
+                </div>
+                <div class="form-group">
+                    <label>Auth Token</label>
+                    <input type="password" id="twilio-token" placeholder="your_auth_token">
+                </div>
+                <div class="form-group">
+                    <label>Twilio Phone Number</label>
+                    <input type="text" id="twilio-number" placeholder="+1234567890">
+                    <small>Must be a Twilio number with SMS capability</small>
+                </div>
+                <div class="form-group">
+                    <label>Your Domain (for referral links)</label>
+                    <input type="text" id="domain" placeholder="https://your-domain.com">
+                    <small>Used in SMS messages for referral links</small>
+                </div>
+            </section>
+            
+            <!-- Pricing Section -->
+            <section class="form-section">
+                <h2>💰 Pricing</h2>
+                <div class="form-row">
+                    <div class="form-group half">
+                        <label>Initial Price ($)</label>
+                        <input type="number" id="initial-price" min="0" step="0.01">
+                    </div>
+                    <div class="form-group half">
+                        <label>Initial Buyers Count</label>
+                        <input type="number" id="initial-buyers" min="0">
+                    </div>
+                </div>
+                
+                <h3>Price Tiers</h3>
+                <div id="price-tiers">
+                    <!-- Dynamic tier rows -->
+                </div>
+                <button type="button" class="btn-secondary" onclick="addTier()">+ Add Tier</button>
+            </section>
+            
+            <!-- Countdown Section -->
+            <section class="form-section">
+                <h2>⏰ Countdown</h2>
+                <div class="form-group">
+                    <label>End Date & Time</label>
+                    <input type="datetime-local" id="countdown-end">
+                    <small>Times are in your local timezone</small>
+                </div>
+            </section>
+            
+            <!-- Stats Section -->
+            <section class="form-section stats">
+                <h2>📊 Live Stats</h2>
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="stat-label">Total Buyers</span>
+                        <span class="stat-value" id="stat-total-buyers">-</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="stat-label">Real Participants</span>
+                        <span class="stat-value" id="stat-real">-</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="stat-label">Current Price</span>
+                        <span class="stat-value" id="stat-current-price">-</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="stat-label">Time Left</span>
+                        <span class="stat-value" id="stat-time-left">-</span>
+                    </div>
+                </div>
+                <button type="button" class="btn-secondary" onclick="viewParticipants()">👥 View Participants</button>
+            </section>
+            
+            <!-- Actions -->
+            <div class="form-actions">
+                <button type="submit" class="btn-primary">💾 Save Changes</button>
+                <button type="button" class="btn-secondary" onclick="resetForm()">↺ Reset</button>
+            </div>
+        </form>
+        
+        <div id="toast" class="toast"></div>
+    </div>
+    
+    <!-- Participants Modal -->
+    <div id="participants-modal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Participants</h2>
+                <button class="close-btn" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <table id="participants-table">
+                    <thead>
+                        <tr>
+                            <th>Phone</th>
+                            <th>Email</th>
+                            <th>Referral Code</th>
+                            <th>Referred By</th>
+                            <th>Joined</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <script src="admin.js"></script>
+</body>
+</html>

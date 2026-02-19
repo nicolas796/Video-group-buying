@@ -1,0 +1,27 @@
+# Dependencies
+node_modules/
+
+# Data files (persist on Render but not in git)
+data/participants.json
+
+# Environment
+.env
+.env.local
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Temp files
+*.tmp
+*.temp

@@ -1,0 +1,26 @@
+{
+  "initialBuyers": 234,
+  "initialPrice": 80,
+  "priceTiers": [
+    {
+      "buyers": 100,
+      "price": 40
+    },
+    {
+      "buyers": 500,
+      "price": 30
+    },
+    {
+      "buyers": 1000,
+      "price": 20
+    }
+  ],
+  "countdownEnd": "2026-02-20T14:00:00-05:00",
+  "videoSource": "https://vod.estreamly.com/assets/994758e3-c35f-4e26-9512-1babf10b6207/HLS/jUVhs_DTuiA6FDuYM_720.m3u8",
+  "product": {
+    "image": "https://cdn.shopify.com/s/files/1/0576/9848/4364/files/478-Range-Rider-Denim.png?v=1763760948",
+    "name": "478 Range Rider Denim",
+    "description": "Come in 3 sizes"
+  },
+  "currentBuyers": 3
+}
