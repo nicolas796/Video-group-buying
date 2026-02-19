@@ -310,6 +310,10 @@ joinForm.addEventListener('submit', async (e) => {
             
             // Setup referral section
             setupReferralSection();
+        } else if (response.status === 409) {
+            // Duplicate phone number
+            const data = await response.json();
+            alert('This phone number has already joined this drop! Check your SMS for your referral link.');
         } else {
             alert('Something went wrong. Please try again.');
         }

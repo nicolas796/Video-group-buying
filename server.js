@@ -248,6 +248,22 @@ const server = http.createServer((req, res) => {
                     const participants = readJson(participantsPath) || [];
                     const config = readJson(configPath) || defaultConfig;
                     
+                    // Check if phone number already exists
+                    const normalizedPhone = data.phone.replace(/\D/g, '');
+                    const existingParticipant = participants.find(p => 
+                        p.phone.replace(/\D/g, '') === normalizedPhone
+                    );
+                    
+                    if (existingParticipant) {
+                        res.writeHead(409, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify({ 
+                            error: 'Phone number already registered for this drop',
+                            alreadyJoined: true,
+                            referralCode: existingParticipant.referralCode
+                        }));
+                        return;
+                    }
+                    
                     // Generate unique referral code for this user
                     const referralCode = generateReferralCode();
                     
