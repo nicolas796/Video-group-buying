@@ -3,7 +3,6 @@
     margin: 0;
     padding: 0;
     box-sizing: border-box;
-    /* Prevent text size adjustments on orientation change */
     -webkit-text-size-adjust: 100%;
 }
 
@@ -13,12 +12,15 @@ html, body {
     overflow: hidden;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     background: #000;
-    /* Safari fix for viewport height */
     min-height: 100vh;
     min-height: -webkit-fill-available;
 }
 
-/* Container - Fixed positioning for Safari stability */
+/* ============================================
+   MOBILE FIRST (default) - Portrait layout
+   ============================================ */
+
+/* Container */
 .container {
     display: flex;
     flex-direction: column;
@@ -29,12 +31,11 @@ html, body {
     bottom: 0;
     height: 100%;
     width: 100%;
-    /* Prevent Safari from resizing when keyboard appears */
     max-height: 100vh;
     max-height: -webkit-fill-available;
 }
 
-/* Upper Third - Video Section */
+/* Video Section - Top 1/3 on mobile */
 .video-section {
     height: 33.333%;
     width: 100%;
@@ -44,7 +45,6 @@ html, body {
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-    /* Prevent Safari from collapsing */
     min-height: 150px;
 }
 
@@ -52,11 +52,8 @@ html, body {
     width: 100%;
     height: 100%;
     object-fit: contain;
-    /* Safari video fix */
     -webkit-transform: translateZ(0);
     transform: translateZ(0);
-    /* Prevent default Safari video controls */
-    -webkit-media-controls: none;
 }
 
 .loading {
@@ -73,7 +70,7 @@ html, body {
     display: block;
 }
 
-/* Bottom Two Thirds - Content Section */
+/* Content Section - Bottom 2/3 on mobile */
 .content-section {
     height: 66.667%;
     width: 100%;
@@ -83,6 +80,56 @@ html, body {
     padding: 24px 20px;
     flex: 1;
 }
+
+/* ============================================
+   TABLET & DESKTOP - Side by side layout
+   ============================================ */
+
+/* Tablet: 60/40 split */
+@media (min-width: 768px) and (max-width: 1023px) {
+    .container {
+        flex-direction: row;
+    }
+    
+    .video-section {
+        width: 60% !important;
+        height: 100% !important;
+        min-height: auto !important;
+    }
+    
+    .content-section {
+        width: 40% !important;
+        height: 100% !important;
+        max-height: 100vh;
+        border-left: 1px solid #e5e7eb;
+        padding: 20px 16px;
+    }
+}
+
+/* Desktop: 66/33 split */
+@media (min-width: 1024px) {
+    .container {
+        flex-direction: row;
+    }
+    
+    .video-section {
+        width: 66.667% !important;
+        height: 100% !important;
+        min-height: auto !important;
+    }
+    
+    .content-section {
+        width: 33.333% !important;
+        height: 100% !important;
+        max-height: 100vh;
+        border-left: 1px solid #e5e7eb;
+        padding: 24px 20px;
+    }
+}
+
+/* ============================================
+   COMPONENTS
+   ============================================ */
 
 /* Typography */
 .title {
@@ -124,7 +171,7 @@ html, body {
     50% { opacity: 0.5; }
 }
 
-/* Compact Product Progress Section */
+/* Product Progress */
 .product-progress-compact {
     background: #f9fafb;
     border-radius: 12px;
@@ -185,6 +232,13 @@ html, body {
     margin-bottom: 6px;
 }
 
+.progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+    border-radius: 6px;
+    transition: width 0.5s ease;
+}
+
 .unlocked-text {
     font-size: 12px;
     color: #22c55e;
@@ -238,7 +292,7 @@ html, body {
     margin-top: 6px;
 }
 
-/* Expandable Product Details */
+/* Product Details */
 .product-details {
     max-height: 0;
     overflow: hidden;
@@ -294,26 +348,145 @@ html, body {
     font-weight: 700;
 }
 
-/* Old progress section - kept for success view */
+/* Join Box */
+.join-box {
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+    border: 2px solid #f59e0b;
+    border-radius: 16px;
+    padding: 16px;
+    text-align: center;
+    margin-bottom: 12px;
+}
+
+.join-box h2 {
+    font-size: 18px;
+    font-weight: 700;
+    color: #92400e;
+    margin-bottom: 12px;
+}
+
+.input-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.input-group {
+    margin-bottom: 0;
+    flex: 1;
+}
+
+.input-group input {
+    width: 100%;
+    padding: 12px;
+    border: 2px solid #fcd34d;
+    border-radius: 8px;
+    font-size: 16px;
+    background: #fff;
+    transition: border-color 0.2s;
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+.input-group input:focus {
+    outline: none;
+    border-color: #f59e0b;
+}
+
+.join-btn {
+    width: 100%;
+    padding: 14px;
+    background: #f59e0b;
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.1s;
+}
+
+.join-btn:hover {
+    background: #d97706;
+}
+
+.join-btn:active {
+    transform: scale(0.98);
+}
+
+/* Desktop: Stack inputs vertically */
+@media (min-width: 768px) {
+    .join-box {
+        padding: 12px;
+        margin-bottom: 8px;
+    }
+    
+    .join-box h2 {
+        font-size: 16px;
+        margin-bottom: 8px;
+    }
+    
+    .input-row {
+        flex-direction: column;
+        gap: 6px;
+        margin-bottom: 8px;
+    }
+    
+    .input-group input {
+        padding: 10px;
+        font-size: 14px;
+    }
+    
+    .join-btn {
+        padding: 12px;
+        font-size: 14px;
+    }
+}
+
+/* Hidden */
+.hidden {
+    display: none !important;
+}
+
+/* Success View */
+.success-message {
+    text-align: center;
+    margin-bottom: 24px;
+}
+
+.success-message h2 {
+    font-size: 24px;
+    font-weight: 700;
+    color: #1a1a1a;
+    margin-bottom: 8px;
+}
+
+.success-message p {
+    color: #666;
+    font-size: 14px;
+}
+
+/* Progress section in success view - more compact */
 .progress-section {
     margin-bottom: 24px;
 }
 
 .progress-section.compact {
     margin-bottom: 16px;
+    background: #f9fafb;
+    border-radius: 12px;
+    padding: 12px;
 }
 
 .product-display {
     display: flex;
     align-items: center;
     gap: 12px;
-    margin-bottom: 8px;
+    margin-bottom: 10px;
 }
 
 .product-display.compact {
-    margin-bottom: 12px;
-    padding-bottom: 12px;
-    border-bottom: 1px solid #e5e7eb;
+    margin-bottom: 8px;
 }
 
 .product-image {
@@ -348,10 +521,8 @@ html, body {
     line-height: 1.3;
 }
 
-.product-info .product-description {
-    font-size: 13px;
-    color: #6b7280;
-    margin-top: 2px;
+.product-info .product-name.small {
+    font-size: 14px;
 }
 
 .price-display {
@@ -378,7 +549,7 @@ html, body {
 }
 
 .current-price {
-    font-size: 32px;
+    font-size: 28px;
     font-weight: 700;
     color: #1a1a1a;
 }
@@ -387,29 +558,29 @@ html, body {
     font-size: 20px;
 }
 
-.unlocked-price {
+.progress-section .counter {
+    text-align: center;
+    font-size: 14px;
+    color: #666;
+    margin-bottom: 10px;
+}
+
+.progress-section .counter span {
+    font-weight: 700;
+    color: #1a1a1a;
+}
+
+.progress-section .counter.small {
     font-size: 13px;
-    color: #22c55e;
-    font-weight: 600;
-    text-align: right;
-    margin-bottom: 12px;
 }
 
 .progress-bar-container {
     position: relative;
-    height: 12px;
+    height: 10px;
     background: #e5e7eb;
-    border-radius: 6px;
+    border-radius: 5px;
     overflow: visible;
     margin-bottom: 8px;
-}
-
-.progress-bar {
-    height: 100%;
-    background: linear-gradient(90deg, #3b82f6, #8b5cf6);
-    border-radius: 6px;
-    transition: width 0.5s ease;
-    position: relative;
 }
 
 .tier-markers {
@@ -423,11 +594,11 @@ html, body {
 
 .tier-marker {
     position: absolute;
-    top: -4px;
-    width: 20px;
-    height: 20px;
+    top: -3px;
+    width: 16px;
+    height: 16px;
     background: #fff;
-    border: 3px solid #9ca3af;
+    border: 2px solid #9ca3af;
     border-radius: 50%;
     transform: translateX(-50%);
     transition: border-color 0.3s ease;
@@ -441,7 +612,7 @@ html, body {
 .tier-labels {
     display: flex;
     justify-content: space-between;
-    font-size: 12px;
+    font-size: 11px;
     color: #6b7280;
 }
 
@@ -459,100 +630,7 @@ html, body {
     font-weight: 600;
 }
 
-/* Join Box - Prominent at top */
-.join-box {
-    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
-    border: 2px solid #f59e0b;
-    border-radius: 16px;
-    padding: 16px;
-    text-align: center;
-    margin-bottom: 12px;
-}
-
-.join-box h2 {
-    font-size: 18px;
-    font-weight: 700;
-    color: #92400e;
-    margin-bottom: 12px;
-}
-
-.input-row {
-    display: flex;
-    gap: 8px;
-    margin-bottom: 10px;
-}
-
-.input-group {
-    margin-bottom: 0;
-    flex: 1;
-}
-
-.input-group.half {
-    flex: 1;
-}
-
-.input-group input {
-    width: 100%;
-    padding: 12px;
-    border: 2px solid #fcd34d;
-    border-radius: 8px;
-    font-size: 16px; /* Prevent Safari zoom on focus */
-    background: #fff;
-    transition: border-color 0.2s;
-    /* Safari appearance fix */
-    -webkit-appearance: none;
-    appearance: none;
-}
-
-.input-group input:focus {
-    outline: none;
-    border-color: #f59e0b;
-}
-
-.join-btn {
-    width: 100%;
-    padding: 14px;
-    background: #f59e0b;
-    color: #fff;
-    border: none;
-    border-radius: 10px;
-    font-size: 16px;
-    font-weight: 700;
-    cursor: pointer;
-    transition: background 0.2s, transform 0.1s;
-}
-
-.join-btn:hover {
-    background: #d97706;
-}
-
-.join-btn:active {
-    transform: scale(0.98);
-}
-
-/* Success View */
-.hidden {
-    display: none !important;
-}
-
-.success-message {
-    text-align: center;
-    margin-bottom: 24px;
-}
-
-.success-message h2 {
-    font-size: 24px;
-    font-weight: 700;
-    color: #1a1a1a;
-    margin-bottom: 8px;
-}
-
-.success-message p {
-    color: #666;
-    font-size: 14px;
-}
-
-/* Countdown - Compact */
+/* Countdown */
 .countdown-section {
     text-align: center;
     margin-bottom: 16px;
@@ -684,43 +762,6 @@ html, body {
     font-weight: 500;
 }
 
-.referral-link-box {
-    display: flex;
-    gap: 8px;
-    margin-bottom: 4px;
-}
-
-.referral-link-box input {
-    flex: 1;
-    padding: 12px;
-    border: 2px solid #e5e7eb;
-    border-radius: 8px;
-    font-size: 13px;
-    background: #f9fafb;
-    color: #6b7280;
-}
-
-.copy-btn {
-    padding: 12px 20px;
-    background: #3b82f6;
-    color: #fff;
-    border: none;
-    border-radius: 8px;
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: background 0.2s;
-    white-space: nowrap;
-}
-
-.copy-btn:hover {
-    background: #2563eb;
-}
-
-.copy-btn.copied {
-    background: #22c55e;
-}
-
 .share-btn {
     width: 100%;
     padding: 16px 24px;
@@ -750,14 +791,162 @@ html, body {
     box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
 }
 
-/* Mobile Optimizations */
+/* Desktop compact adjustments */
+@media (min-width: 768px) {
+    .countdown-section.landing {
+        padding: 6px 10px;
+        margin-bottom: 8px;
+    }
+    
+    .countdown-section.landing .countdown {
+        font-size: 18px;
+    }
+    
+    .countdown-section.landing .countdown-label {
+        font-size: 10px;
+    }
+    
+    .product-progress-compact {
+        padding: 10px;
+    }
+    
+    .product-mini img {
+        width: 48px;
+        height: 48px;
+    }
+    
+    .product-mini-info .product-name {
+        font-size: 13px;
+    }
+    
+    .price-tag .current-price {
+        font-size: 20px;
+    }
+    
+    .info-btn {
+        width: 32px;
+        height: 32px;
+    }
+    
+    .social-proof {
+        margin-bottom: 8px;
+    }
+    
+    .counter-inline {
+        font-size: 13px;
+    }
+    
+    /* Success view more compact */
+    .success-message {
+        margin-bottom: 12px;
+    }
+    
+    .success-message h2 {
+        font-size: 18px;
+        margin-bottom: 4px;
+    }
+    
+    .success-message p {
+        font-size: 12px;
+    }
+    
+    .progress-section.compact {
+        padding: 10px;
+        margin-bottom: 12px;
+    }
+    
+    .progress-section.compact .product-image.small {
+        width: 36px;
+        height: 36px;
+    }
+    
+    .progress-section.compact .product-name.small {
+        font-size: 12px;
+    }
+    
+    .progress-section.compact .current-price.small {
+        font-size: 16px;
+    }
+    
+    .progress-section.compact .initial-price.small {
+        font-size: 11px;
+    }
+    
+    .progress-section.compact .counter.small {
+        font-size: 11px;
+        margin-bottom: 8px;
+    }
+    
+    .progress-section.compact .progress-bar-container {
+        height: 8px;
+    }
+    
+    .progress-section.compact .tier-labels {
+        font-size: 10px;
+    }
+    
+    .countdown-section {
+        padding: 10px;
+        margin-bottom: 12px;
+    }
+    
+    .countdown-section .countdown {
+        font-size: 20px;
+    }
+    
+    .countdown-section .countdown-label {
+        font-size: 11px;
+    }
+    
+    .referral-status {
+        padding: 10px;
+        margin-bottom: 10px;
+    }
+    
+    .referral-title {
+        font-size: 13px;
+    }
+    
+    .referral-subtitle {
+        font-size: 11px;
+        margin-bottom: 8px;
+    }
+    
+    .referral-dots {
+        gap: 8px;
+        margin-bottom: 6px;
+    }
+    
+    .dot {
+        width: 16px;
+        height: 16px;
+        border-width: 2px;
+    }
+    
+    .referral-count {
+        font-size: 12px;
+    }
+    
+    .share-section > p {
+        font-size: 12px;
+        margin-bottom: 8px;
+    }
+    
+    .share-btn {
+        padding: 10px;
+        font-size: 13px;
+    }
+    
+    .referral-hint {
+        font-size: 11px;
+        margin-top: 6px;
+    }
+}
+
+/* Mobile specific */
 @media (max-width: 480px) {
     .title {
         font-size: 24px;
-    }
-    
-    .current-price {
-        font-size: 32px;
     }
     
     .countdown {
@@ -765,15 +954,14 @@ html, body {
     }
 }
 
-/* Prevent text selection on UI elements */
-.title, .counter, .price-display, .tier-labels, .join-box h2, .countdown-label {
+/* Prevent text selection */
+.title, .counter-inline, .price-tag, .tier-labels, .join-box h2, .countdown-label {
     -webkit-user-select: none;
     -moz-user-select: none;
     -ms-user-select: none;
     user-select: none;
 }
 
-/* Allow text selection on inputs */
 input {
     -webkit-user-select: text;
     -moz-user-select: text;
