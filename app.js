@@ -1,641 +1,473 @@
-/**
- * Group Buying App - Refactored Frontend
- * Features: Modular design, error boundaries, memory management, validation
- */
+// Group Buying App
+let config = {};
+let hls = null;
+let userReferralCode = null;
+let referredBy = null;
+let referralsNeeded = 2;
 
-// ============================================
-// CONFIGURATION & STATE
-// ============================================
-const AppState = {
-    config: null,
-    hls: null,
-    userReferralCode: null,
-    referredBy: null,
-    referralsNeeded: 2,
-    countdownInterval: null,
-    pollTimeout: null,
-    elements: {} // Cached DOM elements
-};
+// Get referral code from URL
+function getReferralFromUrl() {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('ref');
+}
 
-// ============================================
-// DOM CACHE - Cache frequently accessed elements
-// ============================================
-function cacheElements() {
-    AppState.elements = {
-        video: document.getElementById('video-player'),
-        loading: document.getElementById('loading'),
-        landingView: document.getElementById('landing-view'),
-        successView: document.getElementById('success-view'),
-        joinForm: document.getElementById('join-form'),
-        productImg: document.getElementById('product-img'),
-        productName: document.getElementById('product-name'),
-        productImgSuccess: document.getElementById('product-img-success'),
-        productNameSuccess: document.getElementById('product-name-success'),
-        progressBar: document.getElementById('progress-bar'),
-        progressBarSuccess: document.getElementById('progress-bar-success'),
-        tierMarkersSuccess: document.getElementById('tier-markers-success'),
-        tierLabelsSuccess: document.getElementById('tier-labels-success'),
-        currentPrice: document.getElementById('current-price'),
-        currentPriceSuccess: document.getElementById('current-price-success'),
-        initialPrice: document.getElementById('initial-price'),
-        initialPriceSuccess: document.getElementById('initial-price-success'),
-        unlockedPrice: document.getElementById('unlocked-price'),
-        buyerCount: document.getElementById('buyer-count'),
-        buyerCountSuccess: document.getElementById('buyer-count-success'),
-        referralDotsContainer: document.getElementById('referral-dots-container'),
-        referralCount: document.getElementById('referral-count'),
-        referralsNeededText: document.getElementById('referrals-needed-text'),
-        bestPrice: document.getElementById('best-price'),
-        unlockedPriceValue: document.getElementById('unlocked-price-value'),
-        shareBestPrice: document.getElementById('share-best-price'),
-        referralProgress: document.getElementById('referral-progress'),
-        referralUnlocked: document.getElementById('referral-unlocked'),
-        daysLanding: document.getElementById('days-landing'),
-        hoursLanding: document.getElementById('hours-landing'),
-        minutesLanding: document.getElementById('minutes-landing'),
-        secondsLanding: document.getElementById('seconds-landing'),
-        days: document.getElementById('days'),
-        hours: document.getElementById('hours'),
-        minutes: document.getElementById('minutes'),
-        seconds: document.getElementById('seconds')
+// DOM Elements
+const video = document.getElementById('video-player');
+const loading = document.getElementById('loading');
+const landingView = document.getElementById('landing-view');
+const successView = document.getElementById('success-view');
+const joinForm = document.getElementById('join-form');
+
+// Initialize
+async function init() {
+    try {
+        await loadConfig();
+        initPlayer();
+        renderProductInfo();
+        renderProgressBar();
+        startCountdown();
+        updateBuyerCount();
+    } catch (e) {
+        console.error('Init error:', e);
+    }
+}
+
+// Load config from "database"
+async function loadConfig() {
+    try {
+        const response = await fetch('/api/config');
+        config = await response.json();
+        referralsNeeded = config.referralsNeeded || 2;
+    } catch (e) {
+        console.error('Failed to load config:', e);
+        // Fallback defaults
+        config = {
+            initialBuyers: 500,
+            initialPrice: 80,
+            referralsNeeded: 2,
+            priceTiers: [
+                {buyers: 100, price: 40},
+                {buyers: 500, price: 30},
+                {buyers: 1000, price: 20}
+            ],
+            countdownEnd: '2026-02-20T14:00:00-05:00',
+            videoSource: 'https://vod.estreamly.com/assets/994758e3-c35f-4e26-9512-1babf10b6207/HLS/jUVhs_DTuiA6FDuYM_720.m3u8',
+            product: {
+                image: '',
+                name: '',
+                description: ''
+            }
+        };
+        config.currentBuyers = config.initialBuyers;
+    }
+}
+
+// Initialize HLS Player
+function initPlayer() {
+    if (!config.videoSource) return;
+    
+    loading.classList.add('active');
+    
+    // Enable autoplay (muted is required for autoplay in modern browsers)
+    video.muted = true;
+    video.autoplay = true;
+    video.loop = true;
+    
+    const attemptPlay = () => {
+        video.play().catch(e => console.log('Autoplay prevented:', e));
     };
-}
-
-// ============================================
-// ERROR HANDLING
-// ============================================
-class AppError extends Error {
-    constructor(message, type = 'general') {
-        super(message);
-        this.type = type;
-    }
-}
-
-function handleError(error, context = '') {
-    console.error(`[${context}] Error:`, error);
     
-    // User-friendly error messages
-    const userMessage = error instanceof AppError 
-        ? error.message 
-        : 'Something went wrong. Please try again.';
-    
-    // Don't show alert for network polling errors
-    if (context !== 'poll') {
-        alert(userMessage);
-    }
-}
-
-// ============================================
-// VALIDATION
-// ============================================
-const Validation = {
-    phone: (phone) => {
-        const normalized = phone.replace(/\D/g, '');
-        return normalized.length >= 10 && normalized.length <= 15;
-    },
-    
-    email: (email) => {
-        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-    }
-};
-
-// ============================================
-// API CLIENT
-// ============================================
-const API = {
-    async fetch(url, options = {}) {
-        try {
-            const response = await fetch(url, {
-                ...options,
-                headers: {
-                    'Content-Type': 'application/json',
-                    ...options.headers
-                }
-            });
-            
-            if (!response.ok) {
-                const error = await response.json().catch(() => ({ error: 'Unknown error' }));
-                throw new AppError(error.error || `HTTP ${response.status}`, 'api');
-            }
-            
-            return response.json();
-        } catch (error) {
-            if (error instanceof AppError) throw error;
-            throw new AppError('Network error. Please check your connection.', 'network');
-        }
-    },
-    
-    getConfig() {
-        return this.fetch('/api/config');
-    },
-    
-    join(phone, email, referredBy) {
-        return this.fetch('/api/join', {
-            method: 'POST',
-            body: JSON.stringify({ phone, email, referredBy })
+    if (video.canPlayType('application/vnd.apple.mpegurl')) {
+        video.src = config.videoSource;
+        video.addEventListener('loadedmetadata', () => {
+            loading.classList.remove('active');
+            attemptPlay();
         });
-    },
-    
-    getReferralStatus(referralCode) {
-        return this.fetch(`/api/referral/${referralCode}`);
+    } else if (Hls.isSupported()) {
+        hls = new Hls({
+            maxBufferLength: 30,
+            maxMaxBufferLength: 60,
+            enableWorker: true
+        });
+        
+        hls.loadSource(config.videoSource);
+        hls.attachMedia(video);
+        
+        hls.on(Hls.Events.MANIFEST_PARSED, () => {
+            loading.classList.remove('active');
+            attemptPlay();
+        });
+        
+        hls.on(Hls.Events.ERROR, (event, data) => {
+            console.error('HLS Error:', data);
+            if (data.fatal) {
+                loading.textContent = 'Error loading video';
+            }
+        });
+    } else {
+        loading.textContent = 'Browser not supported';
     }
-};
+}
 
-// ============================================
-// VIDEO PLAYER
-// ============================================
-const VideoPlayer = {
-    init() {
-        const { video, loading } = AppState.elements;
-        if (!video || !AppState.config?.videoSource) return;
-        
-        loading.classList.add('active');
-        
-        // Configure video
-        video.muted = true;
-        video.autoplay = true;
-        video.loop = true;
-        
-        const attemptPlay = () => {
-            video.play().catch(e => console.log('[Video] Autoplay prevented:', e));
-        };
-        
-        // Native HLS support (Safari)
-        if (video.canPlayType('application/vnd.apple.mpegurl')) {
-            video.src = AppState.config.videoSource;
-            video.addEventListener('loadedmetadata', () => {
-                loading.classList.remove('active');
-                attemptPlay();
-            }, { once: true });
-        } 
-        // hls.js for other browsers
-        else if (window.Hls?.isSupported()) {
-            AppState.hls = new Hls({
-                maxBufferLength: 30,
-                maxMaxBufferLength: 60,
-                enableWorker: true
-            });
-            
-            AppState.hls.loadSource(AppState.config.videoSource);
-            AppState.hls.attachMedia(video);
-            
-            AppState.hls.on(Hls.Events.MANIFEST_PARSED, () => {
-                loading.classList.remove('active');
-                attemptPlay();
-            });
-            
-            AppState.hls.on(Hls.Events.ERROR, (event, data) => {
-                console.error('[Video] HLS Error:', data);
-                if (data.fatal) {
-                    loading.textContent = 'Error loading video';
-                }
-            });
+// Calculate current price based on buyers
+function getCurrentPrice() {
+    const buyers = config.currentBuyers || 0;
+    let price = config.initialPrice || 80;
+    
+    for (const tier of config.priceTiers || []) {
+        if (buyers >= tier.buyers) {
+            price = tier.price;
+        }
+    }
+    
+    return price;
+}
+
+// Get next unlock tier
+function getNextTier() {
+    const buyers = config.currentBuyers || 0;
+    
+    for (const tier of config.priceTiers || []) {
+        if (buyers < tier.buyers) {
+            return tier;
+        }
+    }
+    return null;
+}
+
+// Render product info
+function renderProductInfo() {
+    const product = config.product || {};
+    
+    // Landing view
+    const landingImg = document.getElementById('product-img');
+    if (landingImg) landingImg.src = product.image || '';
+    
+    const landingName = document.getElementById('product-name');
+    if (landingName) landingName.textContent = product.name || '';
+    
+    // Success view
+    const successImg = document.getElementById('product-img-success');
+    if (successImg) successImg.src = product.image || '';
+    
+    const successName = document.getElementById('product-name-success');
+    if (successName) successName.textContent = product.name || '';
+    
+    // Product details
+    const detailsContent = document.getElementById('product-details-content');
+    if (detailsContent && product.description) {
+        detailsContent.innerHTML = product.description;
+    }
+}
+
+// Render progress bar
+function renderProgressBar() {
+    if (!config.priceTiers || config.priceTiers.length === 0) return;
+    
+    const maxBuyers = Math.max(...config.priceTiers.map(t => t.buyers));
+    const progress = Math.min(((config.currentBuyers || 0) / maxBuyers) * 100, 100);
+    const currentPrice = getCurrentPrice();
+    const nextTier = getNextTier();
+    const initialPrice = config.initialPrice || 80;
+    
+    // Update landing view (simple mini bar)
+    const landingBar = document.getElementById('progress-bar');
+    if (landingBar) {
+        landingBar.style.width = `${progress}%`;
+    }
+    
+    // Update success view (full bar with markers)
+    updateProgressDisplay('progress-bar-success', 'tier-markers-success', 'tier-labels-success', progress, currentPrice, initialPrice);
+    
+    // Update prices on landing view
+    const currentPriceEl = document.getElementById('current-price');
+    const initialPriceEl = document.getElementById('initial-price');
+    if (currentPriceEl) currentPriceEl.textContent = `$${currentPrice}`;
+    if (initialPriceEl) initialPriceEl.textContent = `$${initialPrice}`;
+    
+    // Update unlocked text
+    const unlockedText = document.getElementById('unlocked-price');
+    if (unlockedText) {
+        if (nextTier) {
+            unlockedText.textContent = `🔓 Unlock $${nextTier.price} at ${nextTier.buyers} buyers`;
         } else {
-            loading.textContent = 'Browser not supported';
-        }
-    },
-    
-    destroy() {
-        if (AppState.hls) {
-            AppState.hls.destroy();
-            AppState.hls = null;
+            unlockedText.textContent = '✅ Max discount unlocked!';
         }
     }
-};
+}
 
-// ============================================
-// UI RENDERERS
-// ============================================
-const Renderers = {
-    product() {
-        const { config } = AppState;
-        const product = config.product || {};
-        
-        if (AppState.elements.productImg) {
-            AppState.elements.productImg.src = product.image || '';
-        }
-        if (AppState.elements.productName) {
-            AppState.elements.productName.textContent = product.name || '';
-        }
-        if (AppState.elements.productImgSuccess) {
-            AppState.elements.productImgSuccess.src = product.image || '';
-        }
-        if (AppState.elements.productNameSuccess) {
-            AppState.elements.productNameSuccess.textContent = product.name || '';
-        }
-        
-        // Load product details into expandable section
-        const detailsContent = document.getElementById('product-details-content');
-        if (detailsContent && product.description) {
-            // Check if description contains HTML/list items
-            if (product.description.includes('<') || product.description.includes('-')) {
-                detailsContent.innerHTML = product.description;
-            } else {
-                detailsContent.innerHTML = `<h4>Product Details</h4><p>${product.description}</p>`;
-            }
-        }
-    },
+function updateProgressDisplay(barId, markersId, labelsId, progress, currentPrice, initialPrice) {
+    const bar = document.getElementById(barId);
+    const markers = document.getElementById(markersId);
+    const labels = document.getElementById(labelsId);
     
-    progressBar() {
-        const { config } = AppState;
-        if (!config?.priceTiers?.length) return;
-        
-        const maxBuyers = Math.max(...config.priceTiers.map(t => t.buyers));
-        const currentBuyers = config.currentBuyers || 0;
-        const progress = Math.min((currentBuyers / maxBuyers) * 100, 100);
-        
-        // Calculate current price
-        let currentPrice = config.initialPrice || 80;
-        for (const tier of config.priceTiers) {
-            if (currentBuyers >= tier.buyers) {
-                currentPrice = tier.price;
-            }
-        }
-        
-        // Update landing view
-        if (AppState.elements.progressBar) {
-            AppState.elements.progressBar.style.width = `${progress}%`;
-        }
-        if (AppState.elements.currentPrice) {
-            AppState.elements.currentPrice.textContent = `$${currentPrice}`;
-        }
-        if (AppState.elements.initialPrice) {
-            AppState.elements.initialPrice.textContent = `$${config.initialPrice || 80}`;
-        }
-        
-        // Find next tier
-        const nextTier = config.priceTiers.find(t => currentBuyers < t.buyers);
-        if (AppState.elements.unlockedPrice) {
-            AppState.elements.unlockedPrice.textContent = nextTier 
-                ? `🔓 Unlock $${nextTier.price} at ${nextTier.buyers} buyers`
-                : '✅ Max discount unlocked!';
-        }
-        
-        // Update success view
-        this.renderProgressWithTiers(progress, currentPrice, config);
-        
-        // Update buyer counts
-        const countText = currentBuyers.toLocaleString();
-        if (AppState.elements.buyerCount) {
-            AppState.elements.buyerCount.textContent = countText;
-        }
-        if (AppState.elements.buyerCountSuccess) {
-            AppState.elements.buyerCountSuccess.textContent = countText;
-        }
-    },
+    if (!bar || !markers || !labels) return;
     
-    renderProgressWithTiers(progress, currentPrice, config) {
-        const { progressBarSuccess, tierMarkersSuccess, tierLabelsSuccess, 
-                currentPriceSuccess, initialPriceSuccess } = AppState.elements;
-        
-        if (!progressBarSuccess || !tierMarkersSuccess || !tierLabelsSuccess) return;
-        
-        progressBarSuccess.style.width = `${progress}%`;
-        
-        // Clear and rebuild markers/labels
-        tierMarkersSuccess.innerHTML = '';
-        tierLabelsSuccess.innerHTML = '';
-        
-        const maxBuyers = Math.max(...config.priceTiers.map(t => t.buyers));
-        const currentBuyers = config.currentBuyers || 0;
-        
-        config.priceTiers.forEach(tier => {
-            const position = (tier.buyers / maxBuyers) * 100;
-            const isUnlocked = currentBuyers >= tier.buyers;
-            
-            // Marker
-            const marker = document.createElement('div');
-            marker.className = `tier-marker ${isUnlocked ? 'unlocked' : ''}`;
-            marker.style.left = `${position}%`;
-            tierMarkersSuccess.appendChild(marker);
-            
-            // Label
-            const label = document.createElement('div');
-            label.className = 'tier-label';
-            label.innerHTML = `
-                <div class="tier-buyers">${tier.buyers}</div>
-                <div class="tier-price">$${tier.price}</div>
-            `;
-            tierLabelsSuccess.appendChild(label);
-        });
-        
-        if (currentPriceSuccess) {
-            currentPriceSuccess.textContent = `$${currentPrice}`;
-        }
-        if (initialPriceSuccess) {
-            initialPriceSuccess.textContent = `$${config.initialPrice || 80}`;
-        }
-    },
+    bar.style.width = `${progress}%`;
     
-    referralDots(count) {
-        const container = AppState.elements.referralDotsContainer;
-        if (!container) return;
-        
-        container.innerHTML = '';
-        for (let i = 0; i < count; i++) {
-            const dot = document.createElement('span');
-            dot.className = 'dot';
-            dot.id = `dot-${i}`;
-            container.appendChild(dot);
-        }
-    },
+    markers.innerHTML = '';
+    labels.innerHTML = '';
     
-    referralStatus(data) {
-        const { referralProgress, referralUnlocked, referralCount, 
-                referralsNeededText, bestPrice, unlockedPriceValue } = AppState.elements;
+    const maxBuyers = Math.max(...config.priceTiers.map(t => t.buyers));
+    
+    config.priceTiers.forEach(tier => {
+        const position = (tier.buyers / maxBuyers) * 100;
+        const isUnlocked = (config.currentBuyers || 0) >= tier.buyers;
         
-        if (!referralProgress || !referralUnlocked) return;
+        const marker = document.createElement('div');
+        marker.className = `tier-marker ${isUnlocked ? 'unlocked' : ''}`;
+        marker.style.left = `${position}%`;
+        markers.appendChild(marker);
         
-        // Update config from server
-        AppState.referralsNeeded = data.referralsNeeded || 2;
+        const label = document.createElement('div');
+        label.className = 'tier-label';
+        label.innerHTML = `
+            <div class="tier-buyers">${tier.buyers}</div>
+            <div class="tier-price">$${tier.price}</div>
+        `;
+        labels.appendChild(label);
+    });
+    
+    const currentPriceEl = document.getElementById('current-price-success');
+    const initialPriceEl = document.getElementById('initial-price-success');
+    
+    if (currentPriceEl) currentPriceEl.textContent = `$${currentPrice}`;
+    if (initialPriceEl) initialPriceEl.textContent = `$${initialPrice}`;
+}
+
+// Update buyer count display
+function updateBuyerCount() {
+    const count = (config.currentBuyers || 0).toLocaleString();
+    
+    const countEl = document.getElementById('buyer-count');
+    const countSuccessEl = document.getElementById('buyer-count-success');
+    
+    if (countEl) countEl.textContent = count;
+    if (countSuccessEl) countSuccessEl.textContent = count;
+}
+
+// Start countdown timer
+function startCountdown() {
+    const endDate = new Date(config.countdownEnd);
+    if (isNaN(endDate.getTime())) return;
+    
+    function updateTimer() {
+        const now = new Date();
+        const diff = endDate - now;
         
-        if (referralsNeededText) {
-            referralsNeededText.textContent = AppState.referralsNeeded;
-        }
+        const days = diff > 0 ? Math.floor(diff / (1000 * 60 * 60 * 24)) : 0;
+        const hours = diff > 0 ? Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)) : 0;
+        const minutes = diff > 0 ? Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60)) : 0;
+        const seconds = diff > 0 ? Math.floor((diff % (1000 * 60)) / 1000) : 0;
         
-        // Regenerate dots if needed
-        this.referralDots(AppState.referralsNeeded);
-        
-        // Update dots
-        for (let i = 0; i < AppState.referralsNeeded; i++) {
-            const dot = document.getElementById(`dot-${i}`);
-            if (dot && data.referralCount > i) {
-                dot.classList.add('filled');
-            }
-        }
-        
-        // Update count text
-        if (referralCount) {
-            const plural = AppState.referralsNeeded !== 1 ? 's' : '';
-            referralCount.textContent = `${data.referralCount} of ${AppState.referralsNeeded} referral${plural}`;
-        }
-        
-        // Show unlocked state
-        if (data.unlockedBestPrice) {
-            referralProgress.classList.add('hidden');
-            referralUnlocked.classList.remove('hidden');
-            
-            if (AppState.elements.currentPriceSuccess) {
-                AppState.elements.currentPriceSuccess.textContent = `$${data.bestPrice}`;
-            }
-        }
+        updateCountdownDisplay(days, hours, minutes, seconds);
     }
-};
-
-// ============================================
-// COUNTDOWN TIMER
-// ============================================
-const Countdown = {
-    start() {
-        this.stop(); // Clear any existing interval
-        
-        const endDate = new Date(AppState.config?.countdownEnd);
-        if (isNaN(endDate.getTime())) return;
-        
-        const update = () => {
-            const now = new Date();
-            const diff = endDate - now;
-            
-            const days = diff > 0 ? Math.floor(diff / (1000 * 60 * 60 * 24)) : 0;
-            const hours = diff > 0 ? Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)) : 0;
-            const minutes = diff > 0 ? Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60)) : 0;
-            const seconds = diff > 0 ? Math.floor((diff % (1000 * 60)) / 1000) : 0;
-            
-            this.updateDisplay(days, hours, minutes, seconds);
-        };
-        
-        update();
-        AppState.countdownInterval = setInterval(update, 1000);
-    },
     
-    stop() {
-        if (AppState.countdownInterval) {
-            clearInterval(AppState.countdownInterval);
-            AppState.countdownInterval = null;
-        }
-    },
-    
-    updateDisplay(days, hours, minutes, seconds) {
-        const pad = (n) => n.toString().padStart(2, '0');
-        
-        // Landing view
-        if (AppState.elements.daysLanding) AppState.elements.daysLanding.textContent = pad(days);
-        if (AppState.elements.hoursLanding) AppState.elements.hoursLanding.textContent = pad(hours);
-        if (AppState.elements.minutesLanding) AppState.elements.minutesLanding.textContent = pad(minutes);
-        if (AppState.elements.secondsLanding) AppState.elements.secondsLanding.textContent = pad(seconds);
-        
-        // Success view
-        if (AppState.elements.days) AppState.elements.days.textContent = pad(days);
-        if (AppState.elements.hours) AppState.elements.hours.textContent = pad(hours);
-        if (AppState.elements.minutes) AppState.elements.minutes.textContent = pad(minutes);
-        if (AppState.elements.seconds) AppState.elements.seconds.textContent = pad(seconds);
-    }
-};
+    updateTimer();
+    setInterval(updateTimer, 1000);
+}
 
-// ============================================
-// REFERRAL POLLING
-// ============================================
-const ReferralPoller = {
-    start() {
-        if (!AppState.userReferralCode) return;
-        
-        const poll = async () => {
-            try {
-                const data = await API.getReferralStatus(AppState.userReferralCode);
-                Renderers.referralStatus(data);
-                
-                // Continue polling if not unlocked
-                if (!data.unlockedBestPrice) {
-                    AppState.pollTimeout = setTimeout(poll, 5000);
-                }
-            } catch (error) {
-                handleError(error, 'poll');
-                // Retry on error
-                AppState.pollTimeout = setTimeout(poll, 10000);
-            }
-        };
-        
-        poll();
-    },
+function updateCountdownDisplay(days, hours, minutes, seconds) {
+    const pad = (n) => n.toString().padStart(2, '0');
     
-    stop() {
-        if (AppState.pollTimeout) {
-            clearTimeout(AppState.pollTimeout);
-            AppState.pollTimeout = null;
-        }
-    }
-};
+    const daysLanding = document.getElementById('days-landing');
+    const hoursLanding = document.getElementById('hours-landing');
+    const minutesLanding = document.getElementById('minutes-landing');
+    const secondsLanding = document.getElementById('seconds-landing');
+    
+    if (daysLanding) daysLanding.textContent = pad(days);
+    if (hoursLanding) hoursLanding.textContent = pad(hours);
+    if (minutesLanding) minutesLanding.textContent = pad(minutes);
+    if (secondsLanding) secondsLanding.textContent = pad(seconds);
+    
+    const daysEl = document.getElementById('days');
+    const hoursEl = document.getElementById('hours');
+    const minutesEl = document.getElementById('minutes');
+    const secondsEl = document.getElementById('seconds');
+    
+    if (daysEl) daysEl.textContent = pad(days);
+    if (hoursEl) hoursEl.textContent = pad(hours);
+    if (minutesEl) minutesEl.textContent = pad(minutes);
+    if (secondsEl) secondsEl.textContent = pad(seconds);
+}
 
-// ============================================
-// FORM HANDLING
-// ============================================
-async function handleJoinSubmit(e) {
+// Handle form submission
+joinForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     
-    const phoneInput = document.getElementById('phone');
-    const emailInput = document.getElementById('email');
+    const phone = document.getElementById('phone').value;
+    const email = document.getElementById('email').value;
     
-    const phone = phoneInput?.value?.trim();
-    const email = emailInput?.value?.trim();
-    
-    // Validate
-    if (!Validation.phone(phone)) {
+    // Basic validation
+    const phoneDigits = phone.replace(/\D/g, '');
+    if (phoneDigits.length < 10) {
         alert('Please enter a valid phone number');
-        phoneInput?.focus();
         return;
     }
     
-    if (!Validation.email(email)) {
-        alert('Please enter a valid email address');
-        emailInput?.focus();
+    if (!email.includes('@')) {
+        alert('Please enter a valid email');
         return;
     }
     
-    // Show loading state
-    const submitBtn = e.target.querySelector('button[type="submit"]');
-    const originalText = submitBtn?.textContent;
-    if (submitBtn) {
-        submitBtn.disabled = true;
-        submitBtn.textContent = 'Joining...';
-    }
+    referredBy = getReferralFromUrl();
     
     try {
-        const referredBy = new URLSearchParams(window.location.search).get('ref');
-        const data = await API.join(phone, email, referredBy);
+        const response = await fetch('/api/join', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ phone, email, referredBy })
+        });
         
-        AppState.userReferralCode = data.referralCode;
-        
-        // Switch views
-        if (AppState.elements.landingView) {
-            AppState.elements.landingView.classList.add('hidden');
-        }
-        if (AppState.elements.successView) {
-            AppState.elements.successView.classList.remove('hidden');
-        }
-        
-        // Refresh and setup
-        await initialize();
-        setupReferralSection();
-        
-    } catch (error) {
-        if (error.message?.includes('already registered')) {
+        if (response.ok) {
+            const data = await response.json();
+            userReferralCode = data.referralCode;
+            
+            landingView.classList.add('hidden');
+            successView.classList.remove('hidden');
+            
+            await loadConfig();
+            renderProgressBar();
+            updateBuyerCount();
+            setupReferralSection();
+        } else if (response.status === 409) {
             alert('This phone number has already joined this drop! Check your SMS for your referral link.');
         } else {
-            handleError(error, 'join');
+            const error = await response.json();
+            alert(error.error || 'Something went wrong. Please try again.');
         }
-    } finally {
-        if (submitBtn) {
-            submitBtn.disabled = false;
-            submitBtn.textContent = originalText;
-        }
+    } catch (e) {
+        console.error('Join error:', e);
+        alert('Network error. Please try again.');
     }
-}
+});
 
-// ============================================
-// SETUP FUNCTIONS
-// ============================================
+// Setup referral section
 function setupReferralSection() {
-    if (!AppState.config?.priceTiers?.length) return;
+    const bestPrice = Math.min(...(config.priceTiers || []).map(t => t.price));
     
-    const bestPrice = Math.min(...AppState.config.priceTiers.map(t => t.price));
+    const bestPriceEl = document.getElementById('best-price');
+    const unlockedPriceValueEl = document.getElementById('unlocked-price-value');
+    const shareBestPriceEl = document.getElementById('share-best-price');
+    const referralsNeededTextEl = document.getElementById('referrals-needed-text');
     
-    if (AppState.elements.bestPrice) {
-        AppState.elements.bestPrice.textContent = bestPrice;
-    }
-    if (AppState.elements.unlockedPriceValue) {
-        AppState.elements.unlockedPriceValue.textContent = bestPrice;
-    }
-    if (AppState.elements.shareBestPrice) {
-        AppState.elements.shareBestPrice.textContent = bestPrice;
-    }
+    if (bestPriceEl) bestPriceEl.textContent = bestPrice;
+    if (unlockedPriceValueEl) unlockedPriceValueEl.textContent = bestPrice;
+    if (shareBestPriceEl) shareBestPriceEl.textContent = bestPrice;
+    if (referralsNeededTextEl) referralsNeededTextEl.textContent = referralsNeeded;
     
-    Renderers.referralDots(AppState.referralsNeeded);
-    ReferralPoller.start();
+    generateReferralDots(referralsNeeded);
+    pollReferralStatus();
 }
 
-function setupEventListeners() {
-    // Join form
-    if (AppState.elements.joinForm) {
-        AppState.elements.joinForm.addEventListener('submit', handleJoinSubmit);
+// Generate referral dots dynamically
+function generateReferralDots(count) {
+    const container = document.getElementById('referral-dots-container');
+    if (!container) return;
+    
+    container.innerHTML = '';
+    for (let i = 0; i < count; i++) {
+        const dot = document.createElement('span');
+        dot.className = 'dot';
+        dot.id = `dot-${i}`;
+        container.appendChild(dot);
     }
 }
 
-// ============================================
-// PUBLIC API
-// ============================================
-window.shareReferral = function() {
-    const shareUrl = AppState.userReferralCode 
-        ? `${window.location.origin}${window.location.pathname}?ref=${AppState.userReferralCode}`
+// Poll for referral status
+async function pollReferralStatus() {
+    if (!userReferralCode) return;
+    
+    try {
+        const response = await fetch(`/api/referral/${userReferralCode}`);
+        const data = await response.json();
+        
+        referralsNeeded = data.referralsNeeded || 2;
+        updateReferralUI(data);
+        
+        if (!data.unlockedBestPrice) {
+            setTimeout(pollReferralStatus, 5000);
+        }
+    } catch (e) {
+        console.error('Referral poll error:', e);
+        setTimeout(pollReferralStatus, 10000);
+    }
+}
+
+// Update referral UI
+function updateReferralUI(data) {
+    const progressEl = document.getElementById('referral-progress');
+    const unlockedEl = document.getElementById('referral-unlocked');
+    const countEl = document.getElementById('referral-count');
+    const referralsNeededTextEl = document.getElementById('referrals-needed-text');
+    
+    if (referralsNeededTextEl) referralsNeededTextEl.textContent = referralsNeeded;
+    
+    generateReferralDots(referralsNeeded);
+    
+    for (let i = 0; i < referralsNeeded; i++) {
+        const dot = document.getElementById(`dot-${i}`);
+        if (dot && data.referralCount > i) {
+            dot.classList.add('filled');
+        }
+    }
+    
+    if (countEl) {
+        const plural = referralsNeeded !== 1 ? 's' : '';
+        countEl.textContent = `${data.referralCount} of ${referralsNeeded} referral${plural}`;
+    }
+    
+    if (data.unlockedBestPrice && progressEl && unlockedEl) {
+        progressEl.classList.add('hidden');
+        unlockedEl.classList.remove('hidden');
+        
+        const currentPriceSuccessEl = document.getElementById('current-price-success');
+        if (currentPriceSuccessEl) currentPriceSuccessEl.textContent = `$${data.bestPrice}`;
+    }
+}
+
+// Share function
+function shareReferral() {
+    const shareUrl = userReferralCode 
+        ? `${window.location.origin}${window.location.pathname}?ref=${userReferralCode}`
         : window.location.href;
     
     const shareData = {
         title: 'Join the Drop!',
-        text: `Join the drop with me so we can all save money💰 on this product - ${shareUrl}`,
+        text: `join the drop with me so we can all save money💰 on this product - ${shareUrl}`,
         url: shareUrl
     };
     
     if (navigator.share) {
-        navigator.share(shareData).catch(e => {
-            console.log('[Share] Cancelled:', e);
-        });
+        navigator.share(shareData).catch(e => console.log('Share cancelled:', e));
     } else {
         navigator.clipboard.writeText(shareData.text).then(() => {
             const btn = document.getElementById('share-btn');
             if (btn) {
-                const original = btn.innerHTML;
                 btn.innerHTML = '<span>✓ Copied!</span>';
-                setTimeout(() => btn.innerHTML = original, 2000);
+                setTimeout(() => {
+                    btn.innerHTML = '<span>📤 Share with friends</span>';
+                }, 2000);
             }
         });
     }
-};
+}
 
-window.toggleProductInfo = function() {
+// Toggle product info
+function toggleProductInfo() {
     const btn = document.getElementById('info-btn');
     const details = document.getElementById('product-details');
     
     if (!btn || !details) return;
     
-    const isExpanded = details.classList.contains('expanded');
-    details.classList.toggle('expanded', !isExpanded);
-    btn.classList.toggle('active', !isExpanded);
-};
-
-// ============================================
-// INITIALIZATION
-// ============================================
-async function initialize() {
-    try {
-        AppState.config = await API.getConfig();
-        AppState.referralsNeeded = AppState.config.referralsNeeded || 2;
-        
-        Renderers.product();
-        Renderers.progressBar();
-        Countdown.start();
-        
-    } catch (error) {
-        handleError(error, 'init');
+    if (details.classList.contains('expanded')) {
+        details.classList.remove('expanded');
+        btn.classList.remove('active');
+    } else {
+        details.classList.add('expanded');
+        btn.classList.add('active');
     }
 }
 
-// ============================================
-// LIFECYCLE
-// ============================================
-function init() {
-    cacheElements();
-    setupEventListeners();
-    VideoPlayer.init();
-    initialize();
-}
-
-function cleanup() {
-    Countdown.stop();
-    ReferralPoller.stop();
-    VideoPlayer.destroy();
-}
-
-// Start app
+// Initialize on load
 document.addEventListener('DOMContentLoaded', init);
-
-// Cleanup on page unload
-window.addEventListener('beforeunload', cleanup);
