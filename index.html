@@ -2,7 +2,9 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>Group Buying - eStreamly</title>
     <link rel="stylesheet" href="styles.css">
 </head>
@@ -165,6 +167,41 @@
         </div>
     </div>
     
+    <!-- Safari viewport fix -->
+    <script>
+        // Fix Safari viewport issues with virtual keyboard
+        (function() {
+            const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+            
+            if (isSafari) {
+                // Store initial viewport height
+                let vh = window.innerHeight;
+                document.documentElement.style.setProperty('--vh', `${vh}px`);
+                
+                // Prevent viewport from resizing when keyboard appears
+                window.addEventListener('resize', function() {
+                    // Don't update if it's just the keyboard
+                    if (document.activeElement && 
+                        (document.activeElement.tagName === 'INPUT' || 
+                         document.activeElement.tagName === 'TEXTAREA')) {
+                        return;
+                    }
+                    vh = window.innerHeight;
+                    document.documentElement.style.setProperty('--vh', `${vh}px`);
+                });
+                
+                // Handle input focus/blur
+                document.addEventListener('focusin', function(e) {
+                    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+                        // Scroll element into view smoothly
+                        setTimeout(function() {
+                            e.target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        }, 100);
+                    }
+                });
+            }
+        })();
+    </script>
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <script src="app.js"></script>
 </body>
