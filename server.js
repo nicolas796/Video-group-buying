@@ -5,7 +5,7 @@ const url = require('url');
 const crypto = require('crypto');
 const https = require('https');
 
-const PORT = 8080;
+const PORT = process.env.PORT || 8080;
 const DATA_DIR = path.join(__dirname, 'data');
 
 // Ensure data directory exists
