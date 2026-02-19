@@ -14,6 +14,30 @@
         </header>
         
         <form id="admin-form">
+            <!-- Stats Section - AT THE TOP -->
+            <section class="form-section stats">
+                <h2>📊 Live Stats</h2>
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="stat-label">Total Buyers</span>
+                        <span class="stat-value" id="stat-total-buyers">-</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="stat-label">Real Participants</span>
+                        <span class="stat-value" id="stat-real">-</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="stat-label">Current Price</span>
+                        <span class="stat-value" id="stat-current-price">-</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="stat-label">Time Left</span>
+                        <span class="stat-value" id="stat-time-left">-</span>
+                    </div>
+                </div>
+                <button type="button" class="btn-secondary" onclick="viewParticipants()">👥 View Participants</button>
+            </section>
+            
             <!-- Product Section -->
             <section class="form-section">
                 <h2>📦 Product</h2>
@@ -90,6 +114,16 @@
                 <button type="button" class="btn-secondary" onclick="addTier()">+ Add Tier</button>
             </section>
             
+            <!-- Referral Section -->
+            <section class="form-section">
+                <h2>🎁 Referral Rewards</h2>
+                <div class="form-group">
+                    <label>Referrals Needed to Unlock Best Price</label>
+                    <input type="number" id="referrals-needed" min="1" max="10" value="2">
+                    <small>How many friends must join for the referrer to instantly unlock the lowest price</small>
+                </div>
+            </section>
+            
             <!-- Countdown Section -->
             <section class="form-section">
                 <h2>⏰ Countdown</h2>
@@ -98,30 +132,6 @@
                     <input type="datetime-local" id="countdown-end">
                     <small>Times are in your local timezone</small>
                 </div>
-            </section>
-            
-            <!-- Stats Section -->
-            <section class="form-section stats">
-                <h2>📊 Live Stats</h2>
-                <div class="stats-grid">
-                    <div class="stat-box">
-                        <span class="stat-label">Total Buyers</span>
-                        <span class="stat-value" id="stat-total-buyers">-</span>
-                    </div>
-                    <div class="stat-box">
-                        <span class="stat-label">Real Participants</span>
-                        <span class="stat-value" id="stat-real">-</span>
-                    </div>
-                    <div class="stat-box">
-                        <span class="stat-label">Current Price</span>
-                        <span class="stat-value" id="stat-current-price">-</span>
-                    </div>
-                    <div class="stat-box">
-                        <span class="stat-label">Time Left</span>
-                        <span class="stat-value" id="stat-time-left">-</span>
-                    </div>
-                </div>
-                <button type="button" class="btn-secondary" onclick="viewParticipants()">👥 View Participants</button>
             </section>
             
             <!-- Actions -->

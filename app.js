@@ -323,6 +323,9 @@ joinForm.addEventListener('submit', async (e) => {
     }
 });
 
+// Store referrals needed
+let referralsNeeded = 2;
+
 // Setup referral section
 function setupReferralSection() {
     // Set best price in UI
@@ -331,8 +334,24 @@ function setupReferralSection() {
     document.getElementById('unlocked-price-value').textContent = bestPrice;
     document.getElementById('share-best-price').textContent = bestPrice;
     
+    // Generate referral dots (will be updated when we get actual config from API)
+    generateReferralDots(referralsNeeded);
+    
     // Start polling for referral updates
     pollReferralStatus();
+}
+
+// Generate referral dots dynamically
+function generateReferralDots(count) {
+    const container = document.getElementById('referral-dots-container');
+    container.innerHTML = '';
+    
+    for (let i = 0; i < count; i++) {
+        const dot = document.createElement('span');
+        dot.className = 'dot';
+        dot.id = `dot-${i}`;
+        container.appendChild(dot);
+    }
 }
 
 // Poll for referral status
@@ -360,15 +379,23 @@ function updateReferralUI(data) {
     const unlockedEl = document.getElementById('referral-unlocked');
     const countEl = document.getElementById('referral-count');
     
-    // Update dots
-    const dot1 = document.getElementById('dot-1');
-    const dot2 = document.getElementById('dot-2');
+    // Update referrals needed from server
+    referralsNeeded = data.referralsNeeded || 2;
+    document.getElementById('referrals-needed-text').textContent = referralsNeeded;
     
-    if (data.referralCount >= 1) dot1.classList.add('filled');
-    if (data.referralCount >= 2) dot2.classList.add('filled');
+    // Generate dots if count changed
+    generateReferralDots(referralsNeeded);
+    
+    // Update dots
+    for (let i = 0; i < referralsNeeded; i++) {
+        const dot = document.getElementById(`dot-${i}`);
+        if (dot && data.referralCount > i) {
+            dot.classList.add('filled');
+        }
+    }
     
     // Update count text
-    countEl.textContent = `${data.referralCount} of 2 referrals`;
+    countEl.textContent = `${data.referralCount} of ${referralsNeeded} referral${referralsNeeded !== 1 ? 's' : ''}`;
     
     // Show unlocked state if achieved
     if (data.unlockedBestPrice) {

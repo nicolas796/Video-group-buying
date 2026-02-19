@@ -55,10 +55,12 @@ function getReferralCount(referralCode) {
     return participants.filter(p => p.referredBy === referralCode).length;
 }
 
-// Check if user has unlocked best price via referrals (2+ referrals)
+// Check if user has unlocked best price via referrals
 function hasUnlockedBestPrice(referralCode) {
     if (!referralCode) return false;
-    return getReferralCount(referralCode) >= 2;
+    const config = readJson(configPath) || defaultConfig;
+    const referralsNeeded = config.referralsNeeded || 2;
+    return getReferralCount(referralCode) >= referralsNeeded;
 }
 
 // Get Twilio config
@@ -329,7 +331,9 @@ const server = http.createServer((req, res) => {
             const referralCode = pathname.split('/')[3];
             const count = getReferralCount(referralCode);
             const unlocked = hasUnlockedBestPrice(referralCode);
-            const bestPrice = Math.min(...(readJson(configPath)?.priceTiers?.map(t => t.price) || [20]));
+            const config = readJson(configPath) || defaultConfig;
+            const bestPrice = Math.min(...(config.priceTiers?.map(t => t.price) || [20]));
+            const referralsNeeded = config.referralsNeeded || 2;
             
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({
@@ -337,7 +341,8 @@ const server = http.createServer((req, res) => {
                 referralCount: count,
                 unlockedBestPrice: unlocked,
                 bestPrice: bestPrice,
-                referralsNeeded: Math.max(0, 2 - count)
+                referralsNeeded: referralsNeeded,
+                referralsRemaining: Math.max(0, referralsNeeded - count)
             }));
             return;
         }

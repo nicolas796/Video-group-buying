@@ -50,6 +50,9 @@ function populateForm() {
     document.getElementById('twilio-token').value = twilio.authToken || '';
     document.getElementById('twilio-number').value = twilio.phoneNumber || '';
     document.getElementById('domain').value = currentConfig.domain || '';
+    
+    // Referrals
+    document.getElementById('referrals-needed').value = currentConfig.referralsNeeded || 2;
 }
 
 // Render price tier rows
@@ -115,7 +118,8 @@ async function saveConfig(e) {
             authToken: document.getElementById('twilio-token').value,
             phoneNumber: document.getElementById('twilio-number').value
         },
-        domain: document.getElementById('domain').value
+        domain: document.getElementById('domain').value,
+        referralsNeeded: parseInt(document.getElementById('referrals-needed').value) || 2
     };
     
     try {
