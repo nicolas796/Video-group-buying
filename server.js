@@ -25,7 +25,8 @@ const PATHS = {
 const DEFAULT_CONFIG = {
     initialBuyers: 500,
     initialPrice: 80,
-    priceTiers: [{buyers: 100, price: 40}, {buyers: 500, price: 30}, {buyers: 1000, price: 20}],
+    checkoutUrl: '',
+    priceTiers: [{buyers: 100, price: 40, couponCode: ''}, {buyers: 500, price: 30, couponCode: ''}, {buyers: 1000, price: 20, couponCode: ''}],
     countdownEnd: '2026-02-20T14:00:00-05:00',
     videoSource: 'https://vod.estreamly.com/assets/994758e3-c35f-4e26-9512-1babf10b6207/HLS/jUVhs_DTuiA6FDuYM_720.m3u8',
     product: { image: '', name: '', description: '' },
@@ -98,6 +99,8 @@ function getCampaignConfig(campaignId) {
         id: campaignId,
         initialBuyers: pricing.initialBuyers || campaign.initialBuyers || 500,
         initialPrice: pricing.initialPrice || campaign.originalPrice || 80,
+        checkoutUrl: pricing.checkoutUrl || '',
+        termsUrl: campaign.termsUrl || '',
         priceTiers: pricing.tiers || campaign.priceTiers || [],
         countdownEnd: campaign.countdownEnd || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
         videoSource: campaign.videoUrl || '',
@@ -204,7 +207,14 @@ async function sendWelcomeSMS(phone, referralCode, campaignId = null) {
     const domain = twilio.domain || getConfig().domain || 'https://your-domain.com';
     const referralsNeeded = campaign?.referralsNeeded || campaign?.sharesRequired || DEFAULT_REFERRALS_NEEDED;
     const smsBody = `You're in the drop! 🎉 Share your link to unlock $${bestPrice}: ${domain}/?v=${campaignId}&ref=${referralCode} - Get ${referralsNeeded} friends to join! Reply STOP to unsubscribe.`;
-    try { return await sendSMS(phone, smsBody, campaignId); } catch (error) { return { success: false, error: error.message }; }
+    try { 
+        const result = await sendSMS(phone, smsBody, campaignId);
+        console.log(`[Twilio SMS] Success to ${phone}:`, JSON.stringify(result.data?.sid || result));
+        return result;
+    } catch (error) { 
+        console.error(`[Twilio SMS] Error to ${phone}:`, error.message);
+        return { success: false, error: error.message }; 
+    }
 }
 
 const rateLimitMap = new Map();
@@ -376,12 +386,12 @@ const server = http.createServer((req, res) => {
                     productDescription: data.productDescription || '',
                     videoUrl: data.videoUrl || '',
                     twilio: data.twilio || { enabled: false, accountSid: '', authToken: '', phoneNumber: '', domain: '' },
-                    pricing: data.pricing || { initialPrice: 80, initialBuyers: 100, tiers: [{buyers: 100, price: 40}, {buyers: 500, price: 30}, {buyers: 1000, price: 20}] },
+                    pricing: data.pricing || { initialPrice: 80, initialBuyers: 100, checkoutUrl: '', tiers: [{buyers: 100, price: 40, couponCode: ''}, {buyers: 500, price: 30, couponCode: ''}, {buyers: 1000, price: 20, couponCode: ''}] },
                     referralsNeeded: data.referralsNeeded || 2,
                     countdownEnd: data.countdownEnd || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
                     description: data.productDescription || '', price: 20, originalPrice: 80, imageUrl: '', sharesRequired: data.referralsNeeded || 2,
                     discountPercentage: 75, merchantName: '', merchantLogo: '', initialBuyers: 100,
-                    priceTiers: data.pricing?.tiers || [{buyers: 100, price: 40}, {buyers: 500, price: 30}, {buyers: 1000, price: 20}]
+                    priceTiers: data.pricing?.tiers || [{buyers: 100, price: 40, couponCode: ''}, {buyers: 500, price: 30, couponCode: ''}, {buyers: 1000, price: 20, couponCode: ''}]
                 };
                 if (!saveCampaign(campaignId, newCampaign)) { setNoCacheHeaders(res); res.writeHead(500); return res.end(JSON.stringify({ error: 'Failed to save' })); }
                 setNoCacheHeaders(res);

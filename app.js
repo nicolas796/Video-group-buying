@@ -32,6 +32,7 @@ async function init() {
         
         initPlayer();
         renderProductInfo();
+        updateTermsLink();
         renderProgressBar();
         startCountdown();
         updateBuyerCount();
@@ -446,6 +447,20 @@ function toggleProductInfo() {
     } else {
         details.classList.add('expanded');
         btn.classList.add('active');
+    }
+}
+
+function updateTermsLink() {
+    const termsLink = document.getElementById('terms-link');
+    if (!termsLink) return;
+
+    const termsUrl = config.termsUrl || '';
+    if (termsUrl) {
+        termsLink.href = termsUrl;
+    } else {
+        // Hide the compliance text if no terms URL is set
+        const complianceText = document.querySelector('.terms-compliance');
+        if (complianceText) complianceText.style.display = 'none';
     }
 }
 

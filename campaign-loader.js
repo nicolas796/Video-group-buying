@@ -85,6 +85,7 @@ const CampaignLoader = (function() {
             priceTiers: priceTiers,
             countdownEnd: campaign.countdownEnd || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
             videoSource: campaign.videoUrl || '',
+            termsUrl: campaign.termsUrl || '',
             referralsNeeded: campaign.referralsNeeded || campaign.sharesRequired || 2,
             product: {
                 image: campaign.productImage || campaign.imageUrl || '',

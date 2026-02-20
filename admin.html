@@ -86,7 +86,27 @@
                     <input type="url" id="video-source" placeholder="https://.../playlist.m3u8">
                 </div>
             </section>
-            
+
+            <!-- Checkout Section -->
+            <section class="form-section">
+                <h2>🛒 Checkout</h2>
+                <div class="form-group">
+                    <label>Checkout URL</label>
+                    <input type="url" id="checkout-url" placeholder="https://shop.example.com/product">
+                    <small>Product purchase URL that buyers will be directed to</small>
+                </div>
+            </section>
+
+            <!-- Terms & Conditions Section -->
+            <section class="form-section">
+                <h2>📋 Legal</h2>
+                <div class="form-group">
+                    <label>Terms & Conditions URL</label>
+                    <input type="url" id="terms-url" placeholder="https://example.com/terms">
+                    <small>Link to your Terms & Conditions page. Displayed on the landing page below the registration form.</small>
+                </div>
+            </section>
+
             <!-- Twilio SMS Section -->
             <section class="form-section">
                 <h2>📱 Twilio SMS</h2>
@@ -131,6 +151,13 @@
                 </div>
                 
                 <h3>Price Tiers</h3>
+                <div class="tier-header">
+                    <span class="tier-header-label">#</span>
+                    <span class="tier-header-label">Buyers</span>
+                    <span class="tier-header-label">Price ($)</span>
+                    <span class="tier-header-label">Coupon Code</span>
+                    <span class="tier-header-label">Actions</span>
+                </div>
                 <div id="price-tiers">
                     <!-- Dynamic tier rows -->
                 </div>

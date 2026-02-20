@@ -10,28 +10,32 @@
       "accountSid": "",
       "authToken": "",
       "phoneNumber": "",
-      "domain": "https://your-domain.com"
+      "domain": ""
     },
     "pricing": {
       "initialPrice": 80,
       "initialBuyers": 234,
+      "checkoutUrl": "https://shop.example.com/welding-gloves",
       "tiers": [
         {
           "buyers": 100,
-          "price": 40
+          "price": 40,
+          "couponCode": "GLOVE20"
         },
         {
           "buyers": 500,
-          "price": 30
+          "price": 30,
+          "couponCode": "GLOVE30"
         },
         {
           "buyers": 1000,
-          "price": 20
+          "price": 20,
+          "couponCode": "GLOVE50"
         }
       ]
     },
     "referralsNeeded": 2,
-    "countdownEnd": "2026-03-20T14:00:00-05:00",
+    "countdownEnd": "2026-03-20T19:00:00.000Z",
     "description": "<h4>Product Details</h4><p>Come in 3 sizes: Small - Medium - Large</p><ul><li>Made for Mig/Stick Welding</li><li>Split cowhide leather</li><li>Stitched with Kevlar® thread for strength and durability</li><li>Cutshield™ P-aramid/steel/polyester liner</li><li>Full leather index finger and inset thumb</li><li>Gauntlet style cuff</li><li>Snug-fitting shirred elastic wrist</li><li>Meets ANSI/ISEA 105-2016 Heat level 2</li></ul>",
     "price": 20,
     "originalPrice": 80,
@@ -44,17 +48,21 @@
     "priceTiers": [
       {
         "buyers": 100,
-        "price": 40
+        "price": 40,
+        "couponCode": "GLOVE20"
       },
       {
         "buyers": 500,
-        "price": 30
+        "price": 30,
+        "couponCode": "GLOVE30"
       },
       {
         "buyers": 1000,
-        "price": 20
+        "price": 20,
+        "couponCode": "GLOVE50"
       }
-    ]
+    ],
+    "termsUrl": "https://www.estreamly.com/legal/privacy"
   },
   "1aBcD2eFgHi": {
     "id": "1aBcD2eFgHi",
@@ -67,23 +75,27 @@
       "accountSid": "",
       "authToken": "",
       "phoneNumber": "",
-      "domain": "https://your-domain.com"
+      "domain": ""
     },
     "pricing": {
       "initialPrice": 40,
       "initialBuyers": 156,
+      "checkoutUrl": "https://shop.example.com/coffee-beans",
       "tiers": [
         {
           "buyers": 100,
-          "price": 35
+          "price": 35,
+          "couponCode": "COFFEE5"
         },
         {
           "buyers": 200,
-          "price": 25
+          "price": 25,
+          "couponCode": "COFFEE15"
         },
         {
           "buyers": 500,
-          "price": 15
+          "price": 15,
+          "couponCode": "COFFEE25"
         }
       ]
     },
@@ -101,15 +113,18 @@
     "priceTiers": [
       {
         "buyers": 100,
-        "price": 35
+        "price": 35,
+        "couponCode": "COFFEE5"
       },
       {
         "buyers": 200,
-        "price": 25
+        "price": 25,
+        "couponCode": "COFFEE15"
       },
       {
         "buyers": 500,
-        "price": 15
+        "price": 15,
+        "couponCode": "COFFEE25"
       }
     ]
   },
@@ -129,18 +144,22 @@
     "pricing": {
       "initialPrice": 249,
       "initialBuyers": 412,
+      "checkoutUrl": "https://shop.example.com/headphones",
       "tiers": [
         {
           "buyers": 100,
-          "price": 179
+          "price": 179,
+          "couponCode": "AUDIO70"
         },
         {
           "buyers": 300,
-          "price": 129
+          "price": 129,
+          "couponCode": "AUDIO120"
         },
         {
           "buyers": 750,
-          "price": 89
+          "price": 89,
+          "couponCode": "AUDIO160"
         }
       ]
     },
@@ -158,15 +177,18 @@
     "priceTiers": [
       {
         "buyers": 100,
-        "price": 179
+        "price": 179,
+        "couponCode": "AUDIO70"
       },
       {
         "buyers": 300,
-        "price": 129
+        "price": 129,
+        "couponCode": "AUDIO120"
       },
       {
         "buyers": 750,
-        "price": 89
+        "price": 89,
+        "couponCode": "AUDIO160"
       }
     ]
   },
@@ -186,18 +208,22 @@
     "pricing": {
       "initialPrice": 80,
       "initialBuyers": 100,
+      "checkoutUrl": "",
       "tiers": [
         {
           "buyers": 100,
-          "price": 40
+          "price": 40,
+          "couponCode": ""
         },
         {
           "buyers": 500,
-          "price": 30
+          "price": 30,
+          "couponCode": ""
         },
         {
           "buyers": 1000,
-          "price": 20
+          "price": 20,
+          "couponCode": ""
         }
       ]
     },
@@ -215,15 +241,18 @@
     "priceTiers": [
       {
         "buyers": 100,
-        "price": 40
+        "price": 40,
+        "couponCode": ""
       },
       {
         "buyers": 500,
-        "price": 30
+        "price": 30,
+        "couponCode": ""
       },
       {
         "buyers": 1000,
-        "price": 20
+        "price": 20,
+        "couponCode": ""
       }
     ]
   }

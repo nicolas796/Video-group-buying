@@ -837,6 +837,33 @@ html, body {
     transform: scale(0.98);
 }
 
+/* Terms Compliance Text */
+.terms-compliance {
+    font-size: 12px;
+    color: #6b7280;
+    text-align: center;
+    margin-top: 12px;
+    line-height: 1.4;
+}
+
+.terms-compliance a {
+    color: #6b7280;
+    text-decoration: underline;
+    transition: color 0.2s ease;
+}
+
+.terms-compliance a:hover {
+    color: #4b5563;
+}
+
+/* Desktop: Slightly larger compliance text */
+@media (min-width: 768px) {
+    .terms-compliance {
+        font-size: 13px;
+        margin-top: 14px;
+    }
+}
+
 /* Desktop: Stack inputs vertically on tablet, keep side-by-side on large desktop */
 @media (min-width: 768px) and (max-width: 1023px) {
     .input-row {

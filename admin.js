@@ -119,10 +119,11 @@ async function createNewCampaign() {
         pricing: {
             initialPrice: 80,
             initialBuyers: 100,
+            checkoutUrl: '',
             tiers: [
-                { buyers: 100, price: 40 },
-                { buyers: 500, price: 30 },
-                { buyers: 1000, price: 20 }
+                { buyers: 100, price: 40, couponCode: '' },
+                { buyers: 500, price: 30, couponCode: '' },
+                { buyers: 1000, price: 20, couponCode: '' }
             ]
         },
         referralsNeeded: 2,
@@ -185,6 +186,13 @@ function populateForm() {
     
     // Video
     document.getElementById('video-source').value = currentCampaign.videoUrl || '';
+
+    // Checkout URL
+    const checkoutUrl = currentCampaign.pricing?.checkoutUrl || currentCampaign.checkoutUrl || '';
+    document.getElementById('checkout-url').value = checkoutUrl;
+
+    // Terms & Conditions URL
+    document.getElementById('terms-url').value = currentCampaign.termsUrl || '';
     
     // Pricing - handle both new and legacy structure
     const pricing = currentCampaign.pricing || {};
@@ -193,11 +201,15 @@ function populateForm() {
     
     // Price tiers
     const tierData = pricing.tiers || currentCampaign.priceTiers || [
-        { buyers: 100, price: 40 },
-        { buyers: 500, price: 30 },
-        { buyers: 1000, price: 20 }
+        { buyers: 100, price: 40, couponCode: '' },
+        { buyers: 500, price: 30, couponCode: '' },
+        { buyers: 1000, price: 20, couponCode: '' }
     ];
-    tiers = tierData.map(t => ({ buyers: t.buyers, price: t.price }));
+    tiers = tierData.map(t => ({
+        buyers: t.buyers,
+        price: t.price,
+        couponCode: t.couponCode || ''
+    }));
     renderTiers();
     
     // Countdown - convert to local datetime-local format
@@ -225,16 +237,18 @@ function populateForm() {
 function renderTiers() {
     const container = document.getElementById('price-tiers');
     container.innerHTML = '';
-    
+
     tiers.forEach((tier, index) => {
         const row = document.createElement('div');
         row.className = 'tier-row';
         row.innerHTML = `
             <span class="tier-label">${index + 1}.</span>
-            <input type="number" placeholder="Buyers needed" value="${tier.buyers}" 
+            <input type="number" placeholder="Buyers needed" value="${tier.buyers}"
                    onchange="updateTier(${index}, 'buyers', this.value)">
             <input type="number" placeholder="Price ($)" value="${tier.price}" step="0.01"
                    onchange="updateTier(${index}, 'price', this.value)">
+            <input type="text" placeholder="Coupon code" value="${tier.couponCode || ''}"
+                   onchange="updateTier(${index}, 'couponCode', this.value)">
             <button type="button" class="remove-tier" onclick="removeTier(${index})">×</button>
         `;
         container.appendChild(row);
@@ -243,13 +257,17 @@ function renderTiers() {
 
 // Add new tier
 function addTier() {
-    tiers.push({ buyers: 0, price: 0 });
+    tiers.push({ buyers: 0, price: 0, couponCode: '' });
     renderTiers();
 }
 
 // Update tier value
 function updateTier(index, field, value) {
-    tiers[index][field] = parseFloat(value) || 0;
+    if (field === 'couponCode') {
+        tiers[index][field] = value.trim();
+    } else {
+        tiers[index][field] = parseFloat(value) || 0;
+    }
 }
 
 // Remove tier
@@ -289,8 +307,10 @@ async function saveCampaign(e) {
         pricing: {
             initialPrice: parseFloat(document.getElementById('initial-price').value) || 80,
             initialBuyers: parseInt(document.getElementById('initial-buyers').value) || 0,
+            checkoutUrl: document.getElementById('checkout-url').value.trim(),
             tiers: tiers.filter(t => t.buyers > 0).sort((a, b) => a.buyers - b.buyers)
         },
+        termsUrl: document.getElementById('terms-url').value.trim(),
         referralsNeeded: parseInt(document.getElementById('referrals-needed').value) || 2,
         countdownEnd: countdownEnd,
         // Legacy fields for backward compatibility
