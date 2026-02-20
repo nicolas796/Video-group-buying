@@ -85,24 +85,26 @@ html, body {
    TABLET & DESKTOP - Side by side layout
    ============================================ */
 
-/* Tablet: 55/45 split with desktop-like experience */
+/* Tablet: 2/3 video, 1/3 interactivity */
 @media (min-width: 768px) and (max-width: 1023px) {
     .container {
         flex-direction: row;
     }
     
     .video-section {
-        width: 55% !important;
+        width: 67% !important;
         height: 100% !important;
         min-height: auto !important;
     }
     
     .content-section {
-        width: 45% !important;
+        width: 33% !important;
         height: 100% !important;
         max-height: 100vh;
         border-left: 1px solid #e5e7eb;
         padding: 20px 16px;
+        display: flex;
+        flex-direction: column;
     }
     
     /* Always show description on tablet (like desktop) */
@@ -113,163 +115,427 @@ html, body {
     .product-details {
         max-height: none !important;
         overflow: visible !important;
-        margin-top: 12px !important;
+        margin-top: 16px !important;
     }
     
-    /* Slightly smaller than desktop but bigger than mobile */
+    /* Tablet product layout - centered */
+    .product-progress-compact {
+        padding: 20px;
+    }
+    
+    .product-mini {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        gap: 12px;
+    }
+    
+    /* Larger product image on tablet */
     .product-mini img {
-        width: 100px !important;
-        height: 100px !important;
+        width: 160px !important;
+        height: 160px !important;
+        border-radius: 12px;
     }
     
+    .product-mini-info {
+        width: 100%;
+    }
+    
+    /* Larger typography on tablet */
     .product-mini-info .product-name {
-        font-size: 16px !important;
+        font-size: 22px !important;
+        margin-bottom: 8px;
+    }
+    
+    .price-tag {
+        justify-content: center;
+        gap: 12px;
     }
     
     .price-tag .current-price {
-        font-size: 28px !important;
+        font-size: 40px !important;
     }
     
     .price-tag .initial-price {
-        font-size: 16px !important;
+        font-size: 22px !important;
+    }
+    
+    .unlocked-text {
+        font-size: 18px !important;
+        text-align: center;
+    }
+    
+    .counter-inline {
+        font-size: 17px !important;
+    }
+    
+    .social-proof {
+        justify-content: center;
+    }
+    
+    .details-content {
+        padding: 18px;
     }
     
     .details-content h4 {
-        font-size: 15px;
+        font-size: 17px;
     }
     
     .details-content p {
-        font-size: 14px;
+        font-size: 15px;
     }
     
     .details-content li {
-        font-size: 13px;
+        font-size: 14px;
+    }
+    
+    /* Join box */
+    .join-box {
+        padding: 18px;
+    }
+    
+    .join-box h2 {
+        font-size: 18px;
+    }
+    
+    /* Share section */
+    .share-section {
+        margin-top: auto;
+        padding-top: 16px;
+    }
+    
+    .share-section > p {
+        font-size: 16px;
+    }
+    
+    .share-btn {
+        font-size: 16px;
+        padding: 14px 24px;
     }
 }
 
-/* Desktop: 66/33 split */
+/* Desktop: 2/3 video, 1/3 interactivity */
 @media (min-width: 1024px) {
     .container {
         flex-direction: row;
     }
     
     .video-section {
-        width: 66.667% !important;
+        width: 67% !important;
         height: 100% !important;
         min-height: auto !important;
     }
     
     .content-section {
-        width: 33.333% !important;
+        width: 33% !important;
         height: 100% !important;
         max-height: 100vh;
         border-left: 1px solid #e5e7eb;
         padding: 24px 20px;
+        display: flex;
+        flex-direction: column;
     }
     
-    /* Hide expand button on desktop - always show description */
-    .info-btn {
+    /* ============================================
+       LANDING VIEW (Page 1) - Keep compact like mobile
+       ============================================ */
+    
+    #landing-view {
+        display: block;
+        height: auto;
+        overflow-y: auto;
+    }
+    
+    /* Landing view - keep mobile-like sizing */
+    #landing-view .product-mini {
+        flex-direction: row;
+        align-items: center;
+        text-align: left;
+        gap: 12px;
+    }
+    
+    #landing-view .product-mini img {
+        width: 88px !important;
+        height: 88px !important;
+        border-radius: 8px;
+        box-shadow: none;
+    }
+    
+    #landing-view .product-mini-info .product-name {
+        font-size: 18px !important;
+        font-weight: 600;
+        margin-bottom: 4px;
+    }
+    
+    #landing-view .price-tag {
+        justify-content: flex-start;
+        gap: 8px;
+    }
+    
+    #landing-view .price-tag .current-price {
+        font-size: 30px !important;
+        font-weight: 700;
+    }
+    
+    #landing-view .price-tag .initial-price {
+        font-size: 18px !important;
+    }
+    
+    #landing-view .unlocked-text {
+        font-size: 19px !important;
+        margin-top: 6px;
+    }
+    
+    #landing-view .counter-inline {
+        font-size: 18px !important;
+    }
+    
+    #landing-view .social-proof {
+        justify-content: center;
+        margin-bottom: 12px;
+    }
+    
+    /* Landing view - show description expanded on desktop */
+    #landing-view .info-btn {
         display: none !important;
     }
     
-    /* Always show product details on desktop */
-    .product-details {
+    #landing-view .product-details {
         max-height: none !important;
         overflow: visible !important;
         margin-top: 16px !important;
     }
     
-    /* Larger, more readable description text */
-    .details-content {
-        padding: 20px;
+    #landing-view .details-content {
+        padding: 16px;
+        background: #fff;
+        border: 1px solid #e5e7eb;
     }
     
-    .details-content h4 {
+    #landing-view .details-content h4 {
+        font-size: 18px;
+    }
+    
+    #landing-view .details-content p {
+        font-size: 16px;
+        line-height: 1.5;
+    }
+    
+    #landing-view .details-content li {
+        font-size: 15px;
+        padding: 4px 0;
+        padding-left: 16px;
+    }
+    
+    /* Landing view - join box */
+    #landing-view .join-box {
+        padding: 16px;
+        margin-bottom: 12px;
+    }
+    
+    #landing-view .join-box h2 {
         font-size: 18px;
         margin-bottom: 12px;
     }
     
-    .details-content p {
-        font-size: 16px;
-        line-height: 1.6;
-        margin-bottom: 14px;
-    }
-    
-    .details-content li {
-        font-size: 15px;
-        padding: 6px 0;
-        padding-left: 20px;
-        line-height: 1.5;
-    }
-    
-    /* More space for product section */
-    .product-progress-compact {
-        padding: 16px;
-    }
-    
-    /* Larger product name on desktop */
-    .product-mini-info .product-name {
+    #landing-view .input-group input {
+        padding: 12px;
         font-size: 16px;
     }
     
-    /* Bigger price */
-    .price-tag .current-price {
-        font-size: 28px;
+    #landing-view .join-btn {
+        padding: 14px;
+        font-size: 16px;
     }
     
-    /* Product image 25% bigger */
-    .product-mini img {
-        width: 140px !important;
-        height: 140px !important;
+    #landing-view .countdown-section.landing {
+        padding: 8px 12px;
+        margin-bottom: 10px;
     }
     
-    /* Larger product name */
-    .product-mini-info .product-name {
-        font-size: 18px;
-    }
-    
-    /* Bigger current price and compare-at price */
-    .price-tag .current-price {
-        font-size: 36px;
-    }
-    
-    .price-tag .initial-price {
+    #landing-view .countdown-section.landing .countdown {
         font-size: 20px;
     }
     
-    /* Even larger description text */
-    .details-content h4 {
-        font-size: 20px;
+    /* ============================================
+       SUCCESS VIEW (Page 2) - Full desktop layout
+       ============================================ */
+    
+    #success-view {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
     }
     
-    .details-content p {
-        font-size: 18px;
+    /* Success view - larger product image */
+    #success-view .product-image.small {
+        width: 80px !important;
+        height: 80px !important;
     }
     
-    .details-content li {
-        font-size: 17px;
+    #success-view .product-name.small {
+        font-size: 20px !important;
     }
     
-    /* +25% bigger prices and product name */
-    .price-tag .current-price {
-        font-size: 45px !important;
+    #success-view .current-price.small {
+        font-size: 32px !important;
     }
     
-    .price-tag .initial-price {
-        font-size: 25px !important;
-    }
-    
-    .product-mini-info .product-name {
-        font-size: 23px !important;
-    }
-    
-    /* +50% bigger unlock text and buyer count */
-    .unlocked-text {
+    #success-view .counter.small {
         font-size: 18px !important;
     }
     
-    .counter-inline {
-        font-size: 21px !important;
+    .success-message {
+        margin-bottom: 20px;
+    }
+    
+    .success-message h2 {
+        font-size: 32px;
+    }
+    
+    .success-message p {
+        font-size: 18px;
+    }
+    
+    /* Progress section in success view */
+    .progress-section.compact {
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    
+    .tier-labels {
+        font-size: 14px;
+    }
+    
+    /* Referral status */
+    .referral-status {
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    
+    .referral-title {
+        font-size: 20px;
+    }
+    
+    .referral-subtitle {
+        font-size: 16px;
+    }
+    
+    .referral-count {
+        font-size: 16px;
+    }
+    
+    /* Share section - prominent on right side */
+    .share-section {
+        margin-top: auto;
+        padding-top: 20px;
+        border-top: 2px solid #e5e7eb;
+    }
+    
+    .share-section > p {
+        font-size: 20px;
+        margin-bottom: 16px;
+    }
+    
+    .share-btn {
+        padding: 20px 32px;
+        font-size: 20px;
+        border-radius: 14px;
+    }
+    
+    .referral-hint {
+        font-size: 16px;
+        margin-top: 12px;
+    }
+    
+    /* Countdown in success view */
+    .countdown-section {
+        padding: 16px;
+        margin-bottom: 20px;
+    }
+    
+    .countdown-section .countdown-label {
+        font-size: 14px;
+    }
+    
+    .countdown-section .countdown {
+        font-size: 28px;
+    }
+}
+
+/* Large Desktop: Even more space (1200px+) - Only for Success View */
+@media (min-width: 1200px) {
+    .video-section {
+        width: 67% !important;
+    }
+    
+    .content-section {
+        width: 33% !important;
+        padding: 32px 28px;
+    }
+    
+    /* Landing view stays compact */
+    #landing-view .product-mini img {
+        width: 88px !important;
+        height: 88px !important;
+    }
+    
+    #landing-view .product-mini-info .product-name {
+        font-size: 18px !important;
+    }
+    
+    #landing-view .price-tag .current-price {
+        font-size: 30px !important;
+    }
+    
+    #landing-view .price-tag .initial-price {
+        font-size: 18px !important;
+    }
+    
+    /* Landing view - product details always visible on large desktop too */
+    #landing-view .info-btn {
+        display: none !important;
+    }
+    
+    #landing-view .product-details {
+        max-height: none !important;
+        overflow: visible !important;
+        margin-top: 16px !important;
+    }
+    
+    /* Success view gets larger elements */
+    #success-view .product-image.small {
+        width: 96px !important;
+        height: 96px !important;
+    }
+    
+    #success-view .product-name.small {
+        font-size: 24px !important;
+    }
+    
+    #success-view .current-price.small {
+        font-size: 36px !important;
+    }
+    
+    #success-view .counter.small {
+        font-size: 20px !important;
+    }
+    
+    .success-message h2 {
+        font-size: 36px;
+    }
+    
+    .success-message p {
+        font-size: 20px;
+    }
+    
+    .share-section > p {
+        font-size: 22px;
+    }
+    
+    .share-btn {
+        font-size: 22px;
+        padding: 22px 40px;
     }
 }
 
@@ -560,32 +826,18 @@ html, body {
     transform: scale(0.98);
 }
 
-/* Desktop: Stack inputs vertically */
-@media (min-width: 768px) {
-    .join-box {
-        padding: 12px;
-        margin-bottom: 8px;
-    }
-    
-    .join-box h2 {
-        font-size: 16px;
-        margin-bottom: 8px;
-    }
-    
+/* Desktop: Stack inputs vertically on tablet, keep side-by-side on large desktop */
+@media (min-width: 768px) and (max-width: 1023px) {
     .input-row {
         flex-direction: column;
-        gap: 6px;
-        margin-bottom: 8px;
+        gap: 8px;
     }
-    
-    .input-group input {
-        padding: 10px;
-        font-size: 14px;
-    }
-    
-    .join-btn {
-        padding: 12px;
-        font-size: 14px;
+}
+
+@media (min-width: 1024px) {
+    .input-row {
+        flex-direction: row;
+        gap: 12px;
     }
 }
 
@@ -937,155 +1189,87 @@ html, body {
     box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
 }
 
-/* Desktop compact adjustments */
-@media (min-width: 768px) {
-    .countdown-section.landing {
-        padding: 6px 10px;
-        margin-bottom: 8px;
-    }
-    
-    .countdown-section.landing .countdown {
-        font-size: 18px;
-    }
-    
-    .countdown-section.landing .countdown-label {
-        font-size: 10px;
-    }
-    
-    .product-progress-compact {
-        padding: 10px;
-    }
-    
-    .product-mini img {
-        width: 48px;
-        height: 48px;
-    }
-    
-    .product-mini-info .product-name {
-        font-size: 13px;
-    }
-    
-    .price-tag .current-price {
-        font-size: 20px;
-    }
-    
-    .info-btn {
-        width: 32px;
-        height: 32px;
-    }
-    
-    .social-proof {
-        margin-bottom: 8px;
-    }
-    
-    .counter-inline {
-        font-size: 13px;
-    }
-    
-    /* Success view more compact */
-    .success-message {
+/* Desktop compact adjustments - only for narrow desktop views */
+@media (min-width: 768px) and (max-width: 1023px) {
+    /* Join box adjustments for tablet */
+    .join-box {
+        padding: 16px;
         margin-bottom: 12px;
     }
     
-    .success-message h2 {
-        font-size: 18px;
-        margin-bottom: 4px;
-    }
-    
-    .success-message p {
-        font-size: 12px;
-    }
-    
-    .progress-section.compact {
-        padding: 10px;
-        margin-bottom: 12px;
-    }
-    
-    .progress-section.compact .product-image.small {
-        width: 36px;
-        height: 36px;
-    }
-    
-    .progress-section.compact .product-name.small {
-        font-size: 12px;
-    }
-    
-    .progress-section.compact .current-price.small {
-        font-size: 16px;
-    }
-    
-    .progress-section.compact .initial-price.small {
-        font-size: 11px;
-    }
-    
-    .progress-section.compact .counter.small {
-        font-size: 11px;
-        margin-bottom: 8px;
-    }
-    
-    .progress-section.compact .progress-bar-container {
-        height: 8px;
-    }
-    
-    .progress-section.compact .tier-labels {
-        font-size: 10px;
-    }
-    
-    .countdown-section {
-        padding: 10px;
-        margin-bottom: 12px;
-    }
-    
-    .countdown-section .countdown {
-        font-size: 20px;
-    }
-    
-    .countdown-section .countdown-label {
-        font-size: 11px;
-    }
-    
-    .referral-status {
-        padding: 10px;
+    .join-box h2 {
+        font-size: 17px;
         margin-bottom: 10px;
     }
     
+    .input-row {
+        flex-direction: column;
+        gap: 8px;
+        margin-bottom: 10px;
+    }
+    
+    .input-group input {
+        padding: 12px;
+        font-size: 15px;
+    }
+    
+    .join-btn {
+        padding: 14px;
+        font-size: 15px;
+    }
+    
+    /* Countdown adjustments */
+    .countdown-section.landing {
+        padding: 10px 14px;
+        margin-bottom: 12px;
+    }
+    
+    .countdown-section.landing .countdown {
+        font-size: 24px;
+    }
+    
+    .countdown-section.landing .countdown-label {
+        font-size: 12px;
+    }
+    
+    /* Success view adjustments */
+    .success-message {
+        margin-bottom: 16px;
+    }
+    
+    .success-message h2 {
+        font-size: 22px;
+    }
+    
+    .success-message p {
+        font-size: 14px;
+    }
+    
+    .progress-section.compact {
+        padding: 14px;
+        margin-bottom: 14px;
+    }
+    
+    .countdown-section {
+        padding: 14px;
+        margin-bottom: 14px;
+    }
+    
+    .countdown-section .countdown {
+        font-size: 22px;
+    }
+    
+    .referral-status {
+        padding: 14px;
+        margin-bottom: 14px;
+    }
+    
     .referral-title {
-        font-size: 13px;
+        font-size: 16px;
     }
     
     .referral-subtitle {
-        font-size: 11px;
-        margin-bottom: 8px;
-    }
-    
-    .referral-dots {
-        gap: 8px;
-        margin-bottom: 6px;
-    }
-    
-    .dot {
-        width: 16px;
-        height: 16px;
-        border-width: 2px;
-    }
-    
-    .referral-count {
-        font-size: 12px;
-    }
-    
-    .share-section > p {
-        font-size: 12px;
-        margin-bottom: 8px;
-    }
-    
-    .share-btn {
-        padding: 10px;
         font-size: 13px;
-    }
-    
-    .referral-hint {
-        font-size: 11px;
-        margin-top: 6px;
     }
 }
 

@@ -1,0 +1,230 @@
+{
+  "005EZsfHkpI": {
+    "id": "005EZsfHkpI",
+    "productName": "478 Range Rider Denim Welding Gloves",
+    "productImage": "https://cdn.shopify.com/s/files/1/0576/9848/4364/files/478-Range-Rider-Denim.png?v=1763760948",
+    "productDescription": "<h4>Product Details</h4><p>Come in 3 sizes: Small - Medium - Large</p><ul><li>Made for Mig/Stick Welding</li><li>Split cowhide leather</li><li>Stitched with Kevlar® thread for strength and durability</li><li>Cutshield™ P-aramid/steel/polyester liner</li><li>Full leather index finger and inset thumb</li><li>Gauntlet style cuff</li><li>Snug-fitting shirred elastic wrist</li><li>Meets ANSI/ISEA 105-2016 Heat level 2</li></ul>",
+    "videoUrl": "https://vod.estreamly.com/assets/994758e3-c35f-4e26-9512-1babf10b6207/HLS/jUVhs_DTuiA6FDuYM_720.m3u8",
+    "twilio": {
+      "enabled": false,
+      "accountSid": "",
+      "authToken": "",
+      "phoneNumber": "",
+      "domain": "https://your-domain.com"
+    },
+    "pricing": {
+      "initialPrice": 80,
+      "initialBuyers": 234,
+      "tiers": [
+        {
+          "buyers": 100,
+          "price": 40
+        },
+        {
+          "buyers": 500,
+          "price": 30
+        },
+        {
+          "buyers": 1000,
+          "price": 20
+        }
+      ]
+    },
+    "referralsNeeded": 2,
+    "countdownEnd": "2026-03-20T14:00:00-05:00",
+    "description": "<h4>Product Details</h4><p>Come in 3 sizes: Small - Medium - Large</p><ul><li>Made for Mig/Stick Welding</li><li>Split cowhide leather</li><li>Stitched with Kevlar® thread for strength and durability</li><li>Cutshield™ P-aramid/steel/polyester liner</li><li>Full leather index finger and inset thumb</li><li>Gauntlet style cuff</li><li>Snug-fitting shirred elastic wrist</li><li>Meets ANSI/ISEA 105-2016 Heat level 2</li></ul>",
+    "price": 20,
+    "originalPrice": 80,
+    "imageUrl": "https://cdn.shopify.com/s/files/1/0576/9848/4364/files/478-Range-Rider-Denim.png?v=1763760948",
+    "sharesRequired": 2,
+    "discountPercentage": 75,
+    "merchantName": "WeldTech Pro",
+    "merchantLogo": "https://cdn.shopify.com/s/files/1/0576/9848/4364/files/weldtech-logo.png",
+    "initialBuyers": 234,
+    "priceTiers": [
+      {
+        "buyers": 100,
+        "price": 40
+      },
+      {
+        "buyers": 500,
+        "price": 30
+      },
+      {
+        "buyers": 1000,
+        "price": 20
+      }
+    ]
+  },
+  "1aBcD2eFgHi": {
+    "id": "1aBcD2eFgHi",
+    "productName": "Artisan Single-Origin Coffee Beans",
+    "productImage": "https://images.unsplash.com/photo-1559056199-641a0ac8b55e?w=500",
+    "productDescription": "<h4>Premium Coffee Experience</h4><p>Direct trade from Ethiopia Yirgacheffe region</p><ul><li>100% Arabica beans</li><li>Medium roast with notes of blueberry and chocolate</li><li>Freshly roasted within 48 hours of shipping</li><li>12 oz (340g) bag</li><li>Whole bean or ground options</li><li>Certified organic and fair trade</li></ul>",
+    "videoUrl": "https://vod.estreamly.com/assets/d50718e0-2303-4c91-9678-2ed6dcac8ea9/HLS/JyED71z-test_720.m3u8",
+    "twilio": {
+      "enabled": false,
+      "accountSid": "",
+      "authToken": "",
+      "phoneNumber": "",
+      "domain": "https://your-domain.com"
+    },
+    "pricing": {
+      "initialPrice": 40,
+      "initialBuyers": 156,
+      "tiers": [
+        {
+          "buyers": 100,
+          "price": 35
+        },
+        {
+          "buyers": 200,
+          "price": 25
+        },
+        {
+          "buyers": 500,
+          "price": 15
+        }
+      ]
+    },
+    "referralsNeeded": 3,
+    "countdownEnd": "2026-03-16T04:59:00.000Z",
+    "description": "<h4>Premium Coffee Experience</h4><p>Direct trade from Ethiopia Yirgacheffe region</p><ul><li>100% Arabica beans</li><li>Medium roast with notes of blueberry and chocolate</li><li>Freshly roasted within 48 hours of shipping</li><li>12 oz (340g) bag</li><li>Whole bean or ground options</li><li>Certified organic and fair trade</li></ul>",
+    "price": 15,
+    "originalPrice": 40,
+    "imageUrl": "https://images.unsplash.com/photo-1559056199-641a0ac8b55e?w=500",
+    "sharesRequired": 3,
+    "discountPercentage": 67,
+    "merchantName": "Roast Masters Co.",
+    "merchantLogo": "https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?w=200",
+    "initialBuyers": 156,
+    "priceTiers": [
+      {
+        "buyers": 100,
+        "price": 35
+      },
+      {
+        "buyers": 200,
+        "price": 25
+      },
+      {
+        "buyers": 500,
+        "price": 15
+      }
+    ]
+  },
+  "XyZ789pQrSt": {
+    "id": "XyZ789pQrSt",
+    "productName": "Wireless Noise-Canceling Headphones",
+    "productImage": "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500",
+    "productDescription": "<h4>Premium Audio Experience</h4><p>Immersive sound with industry-leading noise cancellation</p><ul><li>Active noise cancellation with transparency mode</li><li>40-hour battery life</li><li>Bluetooth 5.2 connectivity</li><li>Memory foam ear cushions</li><li>Foldable design with travel case</li><li>Touch controls for music and calls</li><li>Compatible with voice assistants</li></ul>",
+    "videoUrl": " https://vod.estreamly.com/assets/23118327-dcaf-431a-881b-82b0fa4f7bb1/HLS/V90Wb_DKhacyRRYcY_720.m3u8",
+    "twilio": {
+      "enabled": false,
+      "accountSid": "",
+      "authToken": "",
+      "phoneNumber": "",
+      "domain": "https://your-domain.com"
+    },
+    "pricing": {
+      "initialPrice": 249,
+      "initialBuyers": 412,
+      "tiers": [
+        {
+          "buyers": 100,
+          "price": 179
+        },
+        {
+          "buyers": 300,
+          "price": 129
+        },
+        {
+          "buyers": 750,
+          "price": 89
+        }
+      ]
+    },
+    "referralsNeeded": 2,
+    "countdownEnd": "2026-03-25T17:00:00.000Z",
+    "description": "<h4>Premium Audio Experience</h4><p>Immersive sound with industry-leading noise cancellation</p><ul><li>Active noise cancellation with transparency mode</li><li>40-hour battery life</li><li>Bluetooth 5.2 connectivity</li><li>Memory foam ear cushions</li><li>Foldable design with travel case</li><li>Touch controls for music and calls</li><li>Compatible with voice assistants</li></ul>",
+    "price": 89,
+    "originalPrice": 249,
+    "imageUrl": "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500",
+    "sharesRequired": 2,
+    "discountPercentage": 64,
+    "merchantName": "SonicSound Audio",
+    "merchantLogo": "https://images.unsplash.com/photo-1516280440614-6697288d5d38?w=200",
+    "initialBuyers": 412,
+    "priceTiers": [
+      {
+        "buyers": 100,
+        "price": 179
+      },
+      {
+        "buyers": 300,
+        "price": 129
+      },
+      {
+        "buyers": 750,
+        "price": 89
+      }
+    ]
+  },
+  "8HlqZPZ6UMM": {
+    "id": "8HlqZPZ6UMM",
+    "productName": "Test Product",
+    "productImage": "https://images.ctfassets.net/3s5io6mnxfqz/5yaU9R8CfN7H3IFwlpjINO/41882ddd6ce99df47e11434a03ee6271/AdobeStock_138391201.jpeg?w=1920",
+    "productDescription": "<h4>Product Details</h4><p>Description coming soon...</p>",
+    "videoUrl": "https://vod.estreamly.com/assets/76c01aca-f67c-43d6-a73e-67f9c21c8d2e/HLS/E0aGb_DJH6OYdvX7g_720.m3u8",
+    "twilio": {
+      "enabled": false,
+      "accountSid": "",
+      "authToken": "",
+      "phoneNumber": "",
+      "domain": "https://your-domain.com"
+    },
+    "pricing": {
+      "initialPrice": 80,
+      "initialBuyers": 100,
+      "tiers": [
+        {
+          "buyers": 100,
+          "price": 40
+        },
+        {
+          "buyers": 500,
+          "price": 30
+        },
+        {
+          "buyers": 1000,
+          "price": 20
+        }
+      ]
+    },
+    "referralsNeeded": 2,
+    "countdownEnd": "2026-02-27T01:17:00.000Z",
+    "description": "<h4>Product Details</h4><p>Description coming soon...</p>",
+    "price": 20,
+    "originalPrice": 80,
+    "imageUrl": "https://images.ctfassets.net/3s5io6mnxfqz/5yaU9R8CfN7H3IFwlpjINO/41882ddd6ce99df47e11434a03ee6271/AdobeStock_138391201.jpeg?w=1920",
+    "sharesRequired": 2,
+    "discountPercentage": 75,
+    "merchantName": "",
+    "merchantLogo": "",
+    "initialBuyers": 100,
+    "priceTiers": [
+      {
+        "buyers": 100,
+        "price": 40
+      },
+      {
+        "buyers": 500,
+        "price": 30
+      },
+      {
+        "buyers": 1000,
+        "price": 20
+      }
+    ]
+  }
+}

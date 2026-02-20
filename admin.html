@@ -13,7 +13,29 @@
             <p>Configure your group buying campaign</p>
         </header>
         
-        <form id="admin-form">
+        <!-- Campaign Selector -->
+        <section class="form-section campaign-selector-section">
+            <h2>📁 Campaign</h2>
+            <div class="form-row">
+                <div class="form-group three-quarters">
+                    <label>Select Campaign</label>
+                    <select id="campaign-selector" onchange="onCampaignSelect()">
+                        <option value="">-- Select a campaign --</option>
+                    </select>
+                </div>
+                <div class="form-group quarter">
+                    <label>&nbsp;</label>
+                    <button type="button" class="btn-secondary" onclick="createNewCampaign()">+ New Campaign</button>
+                </div>
+            </div>
+            <div class="campaign-id-display" id="campaign-id-display" style="display: none;">
+                <span class="label">Campaign ID:</span>
+                <code id="current-campaign-id"></code>
+                <span class="url-hint" id="campaign-url-hint"></span>
+            </div>
+        </section>
+        
+        <form id="admin-form" style="display: none;">
             <!-- Stats Section - AT THE TOP -->
             <section class="form-section stats">
                 <h2>📊 Live Stats</h2>
@@ -36,6 +58,7 @@
                     </div>
                 </div>
                 <button type="button" class="btn-secondary" onclick="viewParticipants()">👥 View Participants</button>
+                <button type="button" class="btn-secondary" onclick="downloadParticipants()" id="download-btn" style="margin-left: 10px;">📥 Download Excel</button>
             </section>
             
             <!-- Product Section -->
@@ -50,8 +73,8 @@
                     <input type="text" id="product-name" placeholder="Product name">
                 </div>
                 <div class="form-group">
-                    <label>Short Description</label>
-                    <textarea id="product-description" rows="3" placeholder="e.g., Come in 3 sizes"></textarea>
+                    <label>Short Description (HTML supported)</label>
+                    <textarea id="product-description" rows="5" placeholder="e.g., <h4>Product Details</h4><p>Description...</p>"></textarea>
                 </div>
             </section>
             
@@ -138,8 +161,13 @@
             <div class="form-actions">
                 <button type="submit" class="btn-primary">💾 Save Changes</button>
                 <button type="button" class="btn-secondary" onclick="resetForm()">↺ Reset</button>
+                <button type="button" class="btn-danger" onclick="deleteCampaign()">🗑️ Delete Campaign</button>
             </div>
         </form>
+        
+        <div id="no-campaign" style="display: none; text-align: center; padding: 40px;">
+            <p style="color: #888; margin-bottom: 20px;">Select a campaign above or create a new one to get started.</p>
+        </div>
         
         <div id="toast" class="toast"></div>
     </div>
@@ -159,6 +187,7 @@
                             <th>Email</th>
                             <th>Referral Code</th>
                             <th>Referred By</th>
+                            <th>Campaign</th>
                             <th>Joined</th>
                         </tr>
                     </thead>

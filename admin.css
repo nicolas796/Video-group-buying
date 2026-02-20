@@ -66,6 +66,96 @@ header p {
     flex: 1;
 }
 
+.form-group.three-quarters {
+    flex: 3;
+}
+
+.form-group.quarter {
+    flex: 1;
+}
+
+.form-group.three-quarters select {
+    width: 100%;
+    padding: 12px;
+    border: 2px solid #e5e7eb;
+    border-radius: 8px;
+    font-size: 14px;
+    background: #fff;
+    cursor: pointer;
+}
+
+.form-group.three-quarters select:focus {
+    outline: none;
+    border-color: #3b82f6;
+}
+
+/* Campaign Selector Section */
+.campaign-selector-section {
+    background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+    border: 2px solid #bae6fd;
+}
+
+.campaign-selector-section h2 {
+    color: #0369a1;
+}
+
+.campaign-id-display {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 16px;
+    padding: 12px;
+    background: #fff;
+    border-radius: 8px;
+    flex-wrap: wrap;
+}
+
+.campaign-id-display .label {
+    font-size: 13px;
+    color: #6b7280;
+}
+
+.campaign-id-display code {
+    font-family: 'Monaco', 'Menlo', monospace;
+    background: #f1f5f9;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 13px;
+    color: #0f172a;
+}
+
+.campaign-id-display .url-hint {
+    color: #6b7280;
+    font-size: 13px;
+}
+
+.campaign-id-display .url-hint a {
+    color: #3b82f6;
+    text-decoration: none;
+}
+
+.campaign-id-display .url-hint a:hover {
+    text-decoration: underline;
+}
+
+/* Delete button */
+.btn-danger {
+    padding: 12px 20px;
+    background: #fee2e2;
+    color: #dc2626;
+    border: 2px solid #fecaca;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-danger:hover {
+    background: #dc2626;
+    color: #fff;
+}
+
 label {
     display: block;
     font-size: 14px;
@@ -196,10 +286,19 @@ small {
     display: flex;
     gap: 12px;
     margin-top: 24px;
+    flex-wrap: wrap;
+}
+
+.form-actions .btn-primary {
+    flex: 2;
 }
 
 .form-actions .btn-secondary {
-    flex: 0 0 auto;
+    flex: 1;
+}
+
+.form-actions .btn-danger {
+    flex: 1;
 }
 
 /* Stats */

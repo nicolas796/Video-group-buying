@@ -1,166 +1,191 @@
-// Group Buying App
+// Group Buying App - Multi-Campaign Support
 let config = {};
 let hls = null;
 let userReferralCode = null;
 let referredBy = null;
 let referralsNeeded = 2;
+let currentCampaignId = null;
 
-// Get referral code from URL
 function getReferralFromUrl() {
-    const params = new URLSearchParams(window.location.search);
-    return params.get('ref');
+    return new URLSearchParams(window.location.search).get('ref');
 }
 
-// DOM Elements
 const video = document.getElementById('video-player');
 const loading = document.getElementById('loading');
 const landingView = document.getElementById('landing-view');
 const successView = document.getElementById('success-view');
 const joinForm = document.getElementById('join-form');
 
-// Initialize
 async function init() {
     try {
-        await loadConfig();
+        const campaignResult = await CampaignLoader.loadCampaignFromUrl();
+        if (!campaignResult.success) {
+            console.error('Campaign load error:', campaignResult.error);
+            CampaignLoader.showCampaignError(campaignResult);
+            return;
+        }
+        
+        currentCampaignId = campaignResult.campaign.id;
+        config = CampaignLoader.toLegacyConfig(campaignResult.campaign);
+        config.campaignId = currentCampaignId;
+        referralsNeeded = config.referralsNeeded || 2;
+        
         initPlayer();
         renderProductInfo();
         renderProgressBar();
         startCountdown();
         updateBuyerCount();
+        updateMerchantInfo();
+        
+        // Load real-time data from server
+        await loadConfig();
+        updateBuyerCount();
+        renderProgressBar();
+        
+        console.log('Campaign loaded:', currentCampaignId, campaignResult.campaign.productName);
     } catch (e) {
         console.error('Init error:', e);
+        showGenericError('Failed to initialize. Please try again later.');
     }
 }
 
-// Load config from "database"
+function showGenericError(message) {
+    const container = document.querySelector('.container') || document.body;
+    container.innerHTML = `
+        <div style="padding: 40px 20px; text-align: center; max-width: 500px; margin: 0 auto;">
+            <div style="font-size: 48px; margin-bottom: 16px;">⚠️</div>
+            <h1 style="color: #fff; margin-bottom: 12px;">Something went wrong</h1>
+            <p style="color: #aaa;">${message}</p>
+            <button onclick="location.reload()" style="margin-top: 24px; padding: 12px 24px; background: linear-gradient(135deg, #FF4D8F, #FF8F4D); border: none; border-radius: 8px; color: white; font-weight: 600; cursor: pointer;">Try Again</button>
+        </div>`;
+}
+
+function updateMerchantInfo() {
+    const campaign = CampaignLoader.getCurrentCampaign();
+    if (!campaign) return;
+    document.title = `${campaign.productName} - Group Buying | eStreamly`;
+}
+
 async function loadConfig() {
     try {
-        const response = await fetch('/api/config');
-        config = await response.json();
-        referralsNeeded = config.referralsNeeded || 2;
+        const response = await fetch(`/api/campaign/${currentCampaignId}/config?t=${Date.now()}`);
+        if (!response.ok) throw new Error('Failed to load config');
+        const serverConfig = await response.json();
+        config.currentBuyers = serverConfig.currentBuyers || config.initialBuyers || 500;
+        config.referralsNeeded = serverConfig.referralsNeeded || config.referralsNeeded || 2;
+        referralsNeeded = config.referralsNeeded;
+        
+        // Recalculate current price and discount based on updated buyer count
+        recalculateDiscount();
     } catch (e) {
         console.error('Failed to load config:', e);
-        // Fallback defaults
-        config = {
-            initialBuyers: 500,
-            initialPrice: 80,
-            referralsNeeded: 2,
-            priceTiers: [
-                {buyers: 100, price: 40},
-                {buyers: 500, price: 30},
-                {buyers: 1000, price: 20}
-            ],
-            countdownEnd: '2026-02-20T14:00:00-05:00',
-            videoSource: 'https://vod.estreamly.com/assets/994758e3-c35f-4e26-9512-1babf10b6207/HLS/jUVhs_DTuiA6FDuYM_720.m3u8',
-            product: {
-                image: '',
-                name: '',
-                description: ''
+        try {
+            const response = await fetch(`/api/campaign/${currentCampaignId}/buyers?t=${Date.now()}`);
+            if (response.ok) {
+                const data = await response.json();
+                config.currentBuyers = data.currentBuyers || config.initialBuyers || 500;
+                recalculateDiscount();
             }
-        };
-        config.currentBuyers = config.initialBuyers;
+        } catch (err) {
+            console.log('Using initial buyer count:', config.initialBuyers);
+        }
     }
 }
 
-// Initialize HLS Player
+function recalculateDiscount() {
+    const initialPrice = config.initialPrice || 80;
+    let currentPrice = initialPrice;
+    
+    // Find current price based on buyer count
+    for (const tier of config.priceTiers || []) {
+        if ((config.currentBuyers || 0) >= tier.buyers) {
+            currentPrice = tier.price;
+        }
+    }
+    
+    config.currentPrice = currentPrice;
+    config.discountPercentage = initialPrice > 0 
+        ? Math.round(((initialPrice - currentPrice) / initialPrice) * 100) 
+        : 0;
+}
+
 function initPlayer() {
     if (!config.videoSource) return;
-    
     loading.classList.add('active');
-    
-    // Enable autoplay (muted is required for autoplay in modern browsers)
     video.muted = true;
     video.autoplay = true;
     video.loop = true;
     
-    const attemptPlay = () => {
-        video.play().catch(e => console.log('Autoplay prevented:', e));
-    };
+    const attemptPlay = () => { video.play().catch(e => console.log('Autoplay prevented:', e)); };
     
     if (video.canPlayType('application/vnd.apple.mpegurl')) {
         video.src = config.videoSource;
-        video.addEventListener('loadedmetadata', () => {
-            loading.classList.remove('active');
-            attemptPlay();
-        });
+        video.addEventListener('loadedmetadata', () => { loading.classList.remove('active'); attemptPlay(); });
     } else if (Hls.isSupported()) {
-        hls = new Hls({
-            maxBufferLength: 30,
-            maxMaxBufferLength: 60,
-            enableWorker: true
-        });
-        
+        hls = new Hls({ maxBufferLength: 30, maxMaxBufferLength: 60, enableWorker: true });
         hls.loadSource(config.videoSource);
         hls.attachMedia(video);
-        
-        hls.on(Hls.Events.MANIFEST_PARSED, () => {
-            loading.classList.remove('active');
-            attemptPlay();
-        });
-        
-        hls.on(Hls.Events.ERROR, (event, data) => {
-            console.error('HLS Error:', data);
-            if (data.fatal) {
-                loading.textContent = 'Error loading video';
-            }
-        });
+        hls.on(Hls.Events.MANIFEST_PARSED, () => { loading.classList.remove('active'); attemptPlay(); });
+        hls.on(Hls.Events.ERROR, (event, data) => { console.error('HLS Error:', data); if (data.fatal) loading.textContent = 'Error loading video'; });
     } else {
         loading.textContent = 'Browser not supported';
     }
 }
 
-// Calculate current price based on buyers
 function getCurrentPrice() {
     const buyers = config.currentBuyers || 0;
     let price = config.initialPrice || 80;
-    
     for (const tier of config.priceTiers || []) {
-        if (buyers >= tier.buyers) {
-            price = tier.price;
-        }
+        if (buyers >= tier.buyers) price = tier.price;
     }
-    
     return price;
 }
 
-// Get next unlock tier
 function getNextTier() {
     const buyers = config.currentBuyers || 0;
-    
     for (const tier of config.priceTiers || []) {
-        if (buyers < tier.buyers) {
-            return tier;
-        }
+        if (buyers < tier.buyers) return tier;
     }
     return null;
 }
 
-// Render product info
 function renderProductInfo() {
     const product = config.product || {};
+    const campaign = CampaignLoader.getCurrentCampaign();
     
-    // Landing view
     const landingImg = document.getElementById('product-img');
     if (landingImg) landingImg.src = product.image || '';
     
     const landingName = document.getElementById('product-name');
     if (landingName) landingName.textContent = product.name || '';
     
-    // Success view
     const successImg = document.getElementById('product-img-success');
     if (successImg) successImg.src = product.image || '';
     
     const successName = document.getElementById('product-name-success');
     if (successName) successName.textContent = product.name || '';
     
-    // Product details
     const detailsContent = document.getElementById('product-details-content');
-    if (detailsContent && product.description) {
-        detailsContent.innerHTML = product.description;
+    if (detailsContent && product.description) detailsContent.innerHTML = product.description;
+    
+    // Display discount percentage - recalculate based on current buyers, then display
+    recalculateDiscount();
+    const discountPercentage = config.discountPercentage || 0;
+    if (discountPercentage > 0) {
+        const discountBadge = document.querySelector('.discount-badge') || createDiscountBadge();
+        discountBadge.textContent = `-${discountPercentage}%`;
     }
 }
 
-// Render progress bar
+function createDiscountBadge() {
+    const badge = document.createElement('span');
+    badge.className = 'discount-badge';
+    badge.style.cssText = 'background: linear-gradient(135deg, #FF4D8F, #FF8F4D); color: white; padding: 4px 12px; border-radius: 20px; font-weight: 700; font-size: 14px; margin-left: 10px;';
+    const priceTag = document.querySelector('.price-tag');
+    if (priceTag) priceTag.appendChild(badge);
+    return badge;
+}
+
 function renderProgressBar() {
     if (!config.priceTiers || config.priceTiers.length === 0) return;
     
@@ -170,26 +195,28 @@ function renderProgressBar() {
     const nextTier = getNextTier();
     const initialPrice = config.initialPrice || 80;
     
-    // Update landing view (simple mini bar)
-    const landingBar = document.getElementById('progress-bar');
-    if (landingBar) {
-        landingBar.style.width = `${progress}%`;
+    // Update discount badge based on current price
+    recalculateDiscount();
+    const discountBadge = document.querySelector('.discount-badge') || createDiscountBadge();
+    if (discountBadge && config.discountPercentage > 0) {
+        discountBadge.textContent = `-${config.discountPercentage}%`;
     }
     
-    // Update success view (full bar with markers)
+    const landingBar = document.getElementById('progress-bar');
+    if (landingBar) landingBar.style.width = `${progress}%`;
+    
     updateProgressDisplay('progress-bar-success', 'tier-markers-success', 'tier-labels-success', progress, currentPrice, initialPrice);
     
-    // Update prices on landing view
     const currentPriceEl = document.getElementById('current-price');
     const initialPriceEl = document.getElementById('initial-price');
     if (currentPriceEl) currentPriceEl.textContent = `$${currentPrice}`;
     if (initialPriceEl) initialPriceEl.textContent = `$${initialPrice}`;
     
-    // Update unlocked text
     const unlockedText = document.getElementById('unlocked-price');
     if (unlockedText) {
         if (nextTier) {
-            unlockedText.textContent = `🔓 Unlock $${nextTier.price} at ${nextTier.buyers} buyers`;
+            const nextDiscount = Math.round(((initialPrice - nextTier.price) / initialPrice) * 100);
+            unlockedText.innerHTML = `🔓 Unlock $${nextTier.price} at ${nextTier.buyers} buyers! <strong style="color: #FF4D8F;">That's ${nextDiscount}% OFF!</strong>`;
         } else {
             unlockedText.textContent = '✅ Max discount unlocked!';
         }
@@ -204,7 +231,6 @@ function updateProgressDisplay(barId, markersId, labelsId, progress, currentPric
     if (!bar || !markers || !labels) return;
     
     bar.style.width = `${progress}%`;
-    
     markers.innerHTML = '';
     labels.innerHTML = '';
     
@@ -221,45 +247,34 @@ function updateProgressDisplay(barId, markersId, labelsId, progress, currentPric
         
         const label = document.createElement('div');
         label.className = 'tier-label';
-        label.innerHTML = `
-            <div class="tier-buyers">${tier.buyers}</div>
-            <div class="tier-price">$${tier.price}</div>
-        `;
+        label.innerHTML = `<div class="tier-buyers">${tier.buyers}</div><div class="tier-price">$${tier.price}</div>`;
         labels.appendChild(label);
     });
     
-    const currentPriceEl = document.getElementById('current-price-success');
-    const initialPriceEl = document.getElementById('initial-price-success');
-    
-    if (currentPriceEl) currentPriceEl.textContent = `$${currentPrice}`;
-    if (initialPriceEl) initialPriceEl.textContent = `$${initialPrice}`;
+    const currentPriceSuccessEl = document.getElementById('current-price-success');
+    const initialPriceSuccessEl = document.getElementById('initial-price-success');
+    if (currentPriceSuccessEl) currentPriceSuccessEl.textContent = `$${currentPrice}`;
+    if (initialPriceSuccessEl) initialPriceSuccessEl.textContent = `$${initialPrice}`;
 }
 
-// Update buyer count display
 function updateBuyerCount() {
-    const count = (config.currentBuyers || 0).toLocaleString();
-    
+    const count = (config.currentBuyers || config.initialBuyers || 0).toLocaleString();
     const countEl = document.getElementById('buyer-count');
     const countSuccessEl = document.getElementById('buyer-count-success');
-    
     if (countEl) countEl.textContent = count;
     if (countSuccessEl) countSuccessEl.textContent = count;
 }
 
-// Start countdown timer
 function startCountdown() {
     const endDate = new Date(config.countdownEnd);
     if (isNaN(endDate.getTime())) return;
     
     function updateTimer() {
-        const now = new Date();
-        const diff = endDate - now;
-        
+        const diff = endDate - new Date();
         const days = diff > 0 ? Math.floor(diff / (1000 * 60 * 60 * 24)) : 0;
         const hours = diff > 0 ? Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)) : 0;
         const minutes = diff > 0 ? Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60)) : 0;
         const seconds = diff > 0 ? Math.floor((diff % (1000 * 60)) / 1000) : 0;
-        
         updateCountdownDisplay(days, hours, minutes, seconds);
     }
     
@@ -291,24 +306,14 @@ function updateCountdownDisplay(days, hours, minutes, seconds) {
     if (secondsEl) secondsEl.textContent = pad(seconds);
 }
 
-// Handle form submission
 joinForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     
     const phone = document.getElementById('phone').value;
     const email = document.getElementById('email').value;
     
-    // Basic validation
-    const phoneDigits = phone.replace(/\D/g, '');
-    if (phoneDigits.length < 10) {
-        alert('Please enter a valid phone number');
-        return;
-    }
-    
-    if (!email.includes('@')) {
-        alert('Please enter a valid email');
-        return;
-    }
+    if (phone.replace(/\D/g, '').length < 10) { alert('Please enter a valid phone number'); return; }
+    if (!email.includes('@')) { alert('Please enter a valid email'); return; }
     
     referredBy = getReferralFromUrl();
     
@@ -316,16 +321,14 @@ joinForm.addEventListener('submit', async (e) => {
         const response = await fetch('/api/join', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ phone, email, referredBy })
+            body: JSON.stringify({ phone, email, referredBy, campaignId: currentCampaignId })
         });
         
         if (response.ok) {
             const data = await response.json();
             userReferralCode = data.referralCode;
-            
             landingView.classList.add('hidden');
             successView.classList.remove('hidden');
-            
             await loadConfig();
             renderProgressBar();
             updateBuyerCount();
@@ -342,9 +345,9 @@ joinForm.addEventListener('submit', async (e) => {
     }
 });
 
-// Setup referral section
 function setupReferralSection() {
-    const bestPrice = Math.min(...(config.priceTiers || []).map(t => t.price));
+    const tiers = config.priceTiers || [];
+    const bestPrice = tiers.length > 0 ? Math.min(...tiers.map(t => t.price)) : 20;
     
     const bestPriceEl = document.getElementById('best-price');
     const unlockedPriceValueEl = document.getElementById('unlocked-price-value');
@@ -360,11 +363,9 @@ function setupReferralSection() {
     pollReferralStatus();
 }
 
-// Generate referral dots dynamically
 function generateReferralDots(count) {
     const container = document.getElementById('referral-dots-container');
     if (!container) return;
-    
     container.innerHTML = '';
     for (let i = 0; i < count; i++) {
         const dot = document.createElement('span');
@@ -374,27 +375,20 @@ function generateReferralDots(count) {
     }
 }
 
-// Poll for referral status
 async function pollReferralStatus() {
     if (!userReferralCode) return;
-    
     try {
-        const response = await fetch(`/api/referral/${userReferralCode}`);
+        const response = await fetch(`/api/referral/${userReferralCode}?campaignId=${currentCampaignId}`);
         const data = await response.json();
-        
         referralsNeeded = data.referralsNeeded || 2;
         updateReferralUI(data);
-        
-        if (!data.unlockedBestPrice) {
-            setTimeout(pollReferralStatus, 5000);
-        }
+        if (!data.unlockedBestPrice) setTimeout(pollReferralStatus, 5000);
     } catch (e) {
         console.error('Referral poll error:', e);
         setTimeout(pollReferralStatus, 10000);
     }
 }
 
-// Update referral UI
 function updateReferralUI(data) {
     const progressEl = document.getElementById('referral-progress');
     const unlockedEl = document.getElementById('referral-unlocked');
@@ -402,14 +396,11 @@ function updateReferralUI(data) {
     const referralsNeededTextEl = document.getElementById('referrals-needed-text');
     
     if (referralsNeededTextEl) referralsNeededTextEl.textContent = referralsNeeded;
-    
     generateReferralDots(referralsNeeded);
     
     for (let i = 0; i < referralsNeeded; i++) {
         const dot = document.getElementById(`dot-${i}`);
-        if (dot && data.referralCount > i) {
-            dot.classList.add('filled');
-        }
+        if (dot && data.referralCount > i) dot.classList.add('filled');
     }
     
     if (countEl) {
@@ -420,23 +411,17 @@ function updateReferralUI(data) {
     if (data.unlockedBestPrice && progressEl && unlockedEl) {
         progressEl.classList.add('hidden');
         unlockedEl.classList.remove('hidden');
-        
         const currentPriceSuccessEl = document.getElementById('current-price-success');
         if (currentPriceSuccessEl) currentPriceSuccessEl.textContent = `$${data.bestPrice}`;
     }
 }
 
-// Share function
 function shareReferral() {
     const shareUrl = userReferralCode 
-        ? `${window.location.origin}${window.location.pathname}?ref=${userReferralCode}`
-        : window.location.href;
+        ? `${window.location.origin}${window.location.pathname}?v=${currentCampaignId}&ref=${userReferralCode}`
+        : `${window.location.origin}${window.location.pathname}?v=${currentCampaignId}`;
     
-    const shareData = {
-        title: 'Join the Drop!',
-        text: `join the drop with me so we can all save money💰 on this product - ${shareUrl}`,
-        url: shareUrl
-    };
+    const shareData = { title: 'Join the Drop!', text: `Join the drop with me so we can all save money💰 - ${shareUrl}`, url: shareUrl };
     
     if (navigator.share) {
         navigator.share(shareData).catch(e => console.log('Share cancelled:', e));
@@ -445,21 +430,16 @@ function shareReferral() {
             const btn = document.getElementById('share-btn');
             if (btn) {
                 btn.innerHTML = '<span>✓ Copied!</span>';
-                setTimeout(() => {
-                    btn.innerHTML = '<span>📤 Share with friends</span>';
-                }, 2000);
+                setTimeout(() => btn.innerHTML = '<span>📤 Share with friends</span>', 2000);
             }
         });
     }
 }
 
-// Toggle product info
 function toggleProductInfo() {
     const btn = document.getElementById('info-btn');
     const details = document.getElementById('product-details');
-    
     if (!btn || !details) return;
-    
     if (details.classList.contains('expanded')) {
         details.classList.remove('expanded');
         btn.classList.remove('active');
@@ -469,5 +449,4 @@ function toggleProductInfo() {
     }
 }
 
-// Initialize on load
 document.addEventListener('DOMContentLoaded', init);
