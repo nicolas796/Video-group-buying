@@ -401,13 +401,15 @@ async function updateStats() {
     if (!currentCampaignId) return;
     
     try {
-        const [campaignRes, participantsRes] = await Promise.all([
+        const [campaignRes, participantsRes, statsRes] = await Promise.all([
             fetch(`/api/campaign/${currentCampaignId}`),
-            fetch('/api/participants')
+            fetch('/api/participants'),
+            fetch(`/api/campaign/${currentCampaignId}/stats`).catch(() => null)
         ]);
         
         const campaign = await campaignRes.json();
         const allParticipants = await participantsRes.json();
+        const statsData = statsRes ? await statsRes.json().catch(() => ({})) : {};
         
         // Check if response is valid array (handle rate limiting errors, etc.)
         if (!Array.isArray(allParticipants)) {
@@ -442,10 +444,18 @@ async function updateStats() {
             timeLeft = `${days}d ${hours}h`;
         }
         
+        // Get SMS sent count from stats
+        const smsSentCount = statsData.smsSentCount || 0;
+        
+        // Calculate expected revenue: participants.length × currentPrice
+        const expectedRevenue = participants.length * currentPrice;
+        
         document.getElementById('stat-total-buyers').textContent = totalBuyers;
         document.getElementById('stat-real').textContent = participants.length;
         document.getElementById('stat-current-price').textContent = `$${currentPrice}`;
         document.getElementById('stat-time-left').textContent = timeLeft;
+        document.getElementById('stat-sms-sent').textContent = smsSentCount;
+        document.getElementById('stat-expected-revenue').textContent = `$${expectedRevenue.toLocaleString()}`;
     } catch (e) {
         console.error('Stats error:', e);
     }
@@ -539,6 +549,14 @@ function showToast(message, type = 'success') {
     setTimeout(() => {
         toast.classList.remove('show');
     }, 3000);
+}
+
+// Logout handler
+function logout() {
+    if (confirm('Are you sure you want to logout?')) {
+        localStorage.removeItem('adminToken');
+        window.location.href = 'login.html';
+    }
 }
 
 // Event listeners

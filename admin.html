@@ -5,12 +5,71 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin - Group Buying</title>
     <link rel="stylesheet" href="admin.css">
+    <style>
+        /* Auth-related styles */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+        .header-content {
+            flex: 1;
+        }
+        .btn-logout {
+            background: #ef4444;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .btn-logout:hover {
+            background: #dc2626;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
+        }
+    </style>
 </head>
 <body>
+    <!-- Auth Check Script - runs immediately -->
+    <script>
+        (function() {
+            const token = localStorage.getItem('adminToken');
+            if (!token) {
+                window.location.href = 'login.html';
+                return;
+            }
+            // Verify token format and expiration
+            try {
+                const payload = JSON.parse(atob(token.split('.')[1]));
+                if (!payload.exp || payload.exp <= Date.now() / 1000) {
+                    localStorage.removeItem('adminToken');
+                    window.location.href = 'login.html';
+                }
+            } catch (e) {
+                localStorage.removeItem('adminToken');
+                window.location.href = 'login.html';
+            }
+        })();
+    </script>
+    
     <div class="admin-container">
         <header>
-            <h1>🎯 Drop Admin</h1>
-            <p>Configure your group buying campaign</p>
+            <div class="header-content">
+                <h1>🎯 Drop Admin</h1>
+                <p>Configure your group buying campaign</p>
+            </div>
+            <button type="button" class="btn-logout" onclick="logout()" title="Logout">
+                🚪 Logout
+            </button>
         </header>
         
         <!-- Campaign Selector -->
@@ -55,6 +114,14 @@
                     <div class="stat-box">
                         <span class="stat-label">Time Left</span>
                         <span class="stat-value" id="stat-time-left">-</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="stat-label">SMS Sent</span>
+                        <span class="stat-value" id="stat-sms-sent">-</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="stat-label">Expected Revenue</span>
+                        <span class="stat-value" id="stat-expected-revenue">-</span>
                     </div>
                 </div>
                 <button type="button" class="btn-secondary" onclick="viewParticipants()">👥 View Participants</button>
@@ -224,6 +291,240 @@
         </div>
     </div>
     
+    <!-- SMS Flow Visualization Section -->
+    <section class="form-section sms-flow-section">
+        <h2>📱 SMS Flow Journey</h2>
+        <p style="color: #6b7280; font-size: 14px; margin-bottom: 20px;">Visual guide to all SMS messages and their triggers</p>
+        
+        <div class="sms-flow">
+            <!-- Welcome SMS -->
+            <div class="sms-flow-item">
+                <div class="sms-flow-trigger">
+                    <span class="trigger-badge trigger-join">🎯 User Joins</span>
+                </div>
+                <div class="sms-flow-arrow">⬇</div>
+                <div class="sms-flow-card">
+                    <div class="sms-flow-header">
+                        <span class="sms-icon">💬</span>
+                        <span class="sms-title">Welcome SMS</span>
+                    </div>
+                    <div class="sms-preview">
+                        "You're in the drop! 🎉 Share your link to unlock $X... Get N friends to join!"
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Reminder SMS -->
+            <div class="sms-flow-item">
+                <div class="sms-flow-trigger">
+                    <span class="trigger-badge trigger-reminder">⏰ 2hrs Before End</span>
+                </div>
+                <div class="sms-flow-arrow">⬇</div>
+                <div class="sms-flow-card">
+                    <div class="sms-flow-header">
+                        <span class="sms-icon">🚨</span>
+                        <span class="sms-title">Reminder SMS</span>
+                        <span class="sms-condition">(if not unlocked)</span>
+                    </div>
+                    <div class="sms-preview">
+                        "🚨 X buyers joined - Y left to unlock $Z, share your link!"
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Unlock SMS -->
+            <div class="sms-flow-item">
+                <div class="sms-flow-trigger">
+                    <span class="trigger-badge trigger-unlock">🎉 Threshold Met</span>
+                </div>
+                <div class="sms-flow-arrow">⬇</div>
+                <div class="sms-flow-card">
+                    <div class="sms-flow-header">
+                        <span class="sms-icon">🔓</span>
+                        <span class="sms-title">Unlock SMS</span>
+                    </div>
+                    <div class="sms-preview">
+                        "Congrats! You've unlocked $X! Use code CODE at checkout..."
+                    </div>
+                </div>
+            </div>
+            
+            <!-- End-of-Drop SMS -->
+            <div class="sms-flow-item">
+                <div class="sms-flow-trigger">
+                    <span class="trigger-badge trigger-end">🏁 Drop Ends</span>
+                </div>
+                <div class="sms-flow-arrow">⬇</div>
+                <div class="sms-flow-card">
+                    <div class="sms-flow-header">
+                        <span class="sms-icon">🏆</span>
+                        <span class="sms-title">End-of-Drop SMS</span>
+                    </div>
+                    <div class="sms-preview">
+                        "End of the drop! You've unlocked $X. Use code CODE... - Valid 4 hours"
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Checkout -->
+            <div class="sms-flow-item checkout-item">
+                <div class="sms-flow-card checkout-card">
+                    <div class="sms-flow-header">
+                        <span class="sms-icon">🛒</span>
+                        <span class="sms-title">Checkout</span>
+                    </div>
+                    <div class="sms-preview">
+                        Customer completes purchase with unlocked price
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Opt-out/Opt-in Flow (Side branch) -->
+        <div class="sms-subflow">
+            <h3>📋 Subscription Management</h3>
+            <div class="sms-subflow-grid">
+                <div class="sms-flow-card">
+                    <div class="sms-flow-header">
+                        <span class="sms-icon">🚫</span>
+                        <span class="sms-title">Opt-out Confirmation</span>
+                    </div>
+                    <div class="sms-preview">
+                        <strong>Trigger:</strong> User replies "STOP"<br>
+                        "You've been unsubscribed. Reply START to resubscribe."
+                    </div>
+                </div>
+                <div class="sms-flow-card">
+                    <div class="sms-flow-header">
+                        <span class="sms-icon">✅</span>
+                        <span class="sms-title">Opt-in Confirmation</span>
+                    </div>
+                    <div class="sms-preview">
+                        <strong>Trigger:</strong> User replies "START"<br>
+                        "You're subscribed! Welcome back."
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+    
+    <style>
+        .sms-flow-section {
+            background: linear-gradient(135deg, #fdf4ff 0%, #fae8ff 100%);
+            border: 2px solid #e9d5ff;
+        }
+        .sms-flow-section h2 {
+            color: #7c3aed;
+        }
+        .sms-flow {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 30px;
+        }
+        .sms-flow-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .sms-flow-trigger {
+            margin-bottom: 8px;
+        }
+        .trigger-badge {
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .trigger-join {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+        .trigger-reminder {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        .trigger-unlock {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        .trigger-end {
+            background: #fce7f3;
+            color: #9d174d;
+        }
+        .sms-flow-arrow {
+            color: #9ca3af;
+            font-size: 20px;
+            margin: 4px 0;
+        }
+        .sms-flow-card {
+            background: #fff;
+            border-radius: 12px;
+            padding: 16px;
+            width: 100%;
+            max-width: 500px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            border-left: 4px solid #8b5cf6;
+        }
+        .checkout-card {
+            border-left-color: #10b981;
+            background: linear-gradient(135deg, #ecfdf5 0%, #fff 100%);
+        }
+        .sms-flow-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+        .sms-icon {
+            font-size: 20px;
+        }
+        .sms-title {
+            font-weight: 600;
+            color: #1f2937;
+            font-size: 15px;
+        }
+        .sms-condition {
+            font-size: 12px;
+            color: #9ca3af;
+            margin-left: auto;
+        }
+        .sms-preview {
+            background: #f9fafb;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 13px;
+            color: #4b5563;
+            font-style: italic;
+            line-height: 1.5;
+        }
+        .checkout-item {
+            margin-top: 10px;
+        }
+        .sms-subflow {
+            border-top: 2px dashed #d8b4fe;
+            padding-top: 24px;
+        }
+        .sms-subflow h3 {
+            color: #7c3aed;
+            font-size: 14px;
+            margin-bottom: 16px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .sms-subflow-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 16px;
+        }
+        .sms-subflow-grid .sms-flow-card {
+            border-left-color: #6b7280;
+        }
+    </style>
+
     <script src="admin.js"></script>
 </body>
 </html>

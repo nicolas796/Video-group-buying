@@ -19,7 +19,8 @@ const PATHS = {
     config: path.join(DATA_DIR, 'config.json'),
     participants: path.join(DATA_DIR, 'participants.json'),
     optouts: path.join(DATA_DIR, 'optouts.json'),
-    campaigns: path.join(DATA_DIR, 'campaigns.json')
+    campaigns: path.join(DATA_DIR, 'campaigns.json'),
+    stats: path.join(DATA_DIR, 'stats.json')
 };
 
 const DEFAULT_CONFIG = {
@@ -38,12 +39,27 @@ const DEFAULT_CONFIG = {
 function initializeFiles() {
     Object.entries(PATHS).forEach(([key, filePath]) => {
         if (!fs.existsSync(filePath)) {
-            const defaultData = key === 'config' ? DEFAULT_CONFIG : key === 'campaigns' ? {} : [];
+            const defaultData = key === 'config' ? DEFAULT_CONFIG : key === 'campaigns' || key === 'stats' ? {} : [];
             writeJson(filePath, defaultData);
         }
     });
 }
 initializeFiles();
+
+// Stats tracking functions
+function getCampaignStats(campaignId) {
+    const allStats = readJson(PATHS.stats) || {};
+    return allStats[campaignId] || { smsSentCount: 0 };
+}
+
+function incrementSmsSentCount(campaignId) {
+    const allStats = readJson(PATHS.stats) || {};
+    if (!allStats[campaignId]) {
+        allStats[campaignId] = { smsSentCount: 0 };
+    }
+    allStats[campaignId].smsSentCount = (allStats[campaignId].smsSentCount || 0) + 1;
+    writeJson(PATHS.stats, allStats);
+}
 
 function readJson(filePath) {
     try { return JSON.parse(fs.readFileSync(filePath, 'utf8')); } catch (e) { return null; }
@@ -159,7 +175,17 @@ async function sendSMS(to, body, campaignId = null) {
         const req = https.request({ hostname: 'api.twilio.com', port: 443, path: `/2010-04-01/Accounts/${twilio.accountSid}/Messages.json`, method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Authorization': `Basic ${auth}`, 'Content-Length': Buffer.byteLength(postData) } }, (res) => {
             let data = '';
             res.on('data', chunk => data += chunk);
-            res.on('end', () => { if (res.statusCode >= 200 && res.statusCode < 300) resolve({ success: true, data: JSON.parse(data) }); else reject(new Error(`Twilio error: ${res.statusCode}`)); });
+            res.on('end', () => {
+                if (res.statusCode >= 200 && res.statusCode < 300) {
+                    // Track successful SMS send
+                    if (campaignId) {
+                        incrementSmsSentCount(campaignId);
+                    }
+                    resolve({ success: true, data: JSON.parse(data) });
+                } else {
+                    reject(new Error(`Twilio error: ${res.statusCode}`));
+                }
+            });
         });
         req.on('error', reject);
         req.write(postData);
@@ -247,13 +273,28 @@ async function sendUnlockSMS(referrerPhone, referralCode, campaignId) {
 }
 
 const rateLimitMap = new Map();
+const loginAttemptsMap = new Map();
 const LOCALHOST_IPS = ['127.0.0.1', '::1', '::ffff:127.0.0.1'];
+
+// Login rate limiting: 5 attempts per 15 minutes
+const LOGIN_RATE_LIMIT_MAX = 5;
+const LOGIN_RATE_LIMIT_WINDOW = 15 * 60 * 1000; // 15 minutes
+
+// Simple hardcoded credentials for development
+const ADMIN_CREDENTIALS = {
+    username: 'admin',
+    password: 'password123'
+};
 
 // Track campaigns that have had reminder SMS sent (to avoid duplicates)
 const reminderSentCampaigns = new Set();
 const REMINDER_CHECK_INTERVAL = 15 * 60 * 1000; // 15 minutes
 const REMINDER_WINDOW_START = 1 * 60 * 60 * 1000 + 45 * 60 * 1000; // 1h45m before end
 const REMINDER_WINDOW_END = 2 * 60 * 60 * 1000 + 15 * 60 * 1000; // 2h15m before end
+
+// Track campaigns that have had end-of-drop SMS sent (to avoid duplicates)
+const endOfDropSentCampaigns = new Set();
+const END_OF_DROP_WINDOW = 15 * 60 * 1000; // 15 minutes after campaign ends
 
 /**
  * Get the next pricing tier for a campaign (lowest tier where buyers > currentBuyers)
@@ -262,25 +303,56 @@ const REMINDER_WINDOW_END = 2 * 60 * 60 * 1000 + 15 * 60 * 1000; // 2h15m before
  */
 function getNextTierForCampaign(campaign) {
     if (!campaign) return null;
-    
+
     const pricing = campaign.pricing || {};
     const tiers = pricing.tiers || campaign.priceTiers || [];
     if (tiers.length === 0) return null;
-    
+
     const participants = getParticipants(campaign.id);
     const currentBuyers = (pricing.initialBuyers || campaign.initialBuyers || 0) + participants.length;
-    
+
     // Sort tiers by buyer count ascending
     const sortedTiers = [...tiers].sort((a, b) => a.buyers - b.buyers);
-    
+
     // Find the first tier with more buyers than current
     for (const tier of sortedTiers) {
         if (tier.buyers > currentBuyers) {
             return tier;
         }
     }
-    
+
     return null; // All tiers unlocked
+}
+
+/**
+ * Get the price tier that matches the current buyer count
+ * Returns the highest tier where tier.buyers <= buyerCount
+ * If buyer count is below first tier, returns null (use initial price)
+ * @param {Object} campaign - Campaign object
+ * @param {number} buyerCount - Current number of buyers
+ * @returns {Object|null} - Matching tier or null if below first tier
+ */
+function getPriceTierForBuyers(campaign, buyerCount) {
+    if (!campaign) return null;
+
+    const pricing = campaign.pricing || {};
+    const tiers = pricing.tiers || campaign.priceTiers || [];
+    if (tiers.length === 0) return null;
+
+    // Sort tiers by buyer count ascending
+    const sortedTiers = [...tiers].sort((a, b) => a.buyers - b.buyers);
+
+    // Find the highest tier where buyers <= current buyer count
+    let matchedTier = null;
+    for (const tier of sortedTiers) {
+        if (tier.buyers <= buyerCount) {
+            matchedTier = tier;
+        } else {
+            break; // Tiers are sorted, so we can stop here
+        }
+    }
+
+    return matchedTier; // null if below first tier
 }
 
 /**
@@ -292,26 +364,26 @@ function getNextTierForCampaign(campaign) {
 async function sendReminderSMS(participant, campaign) {
     if (!participant || !campaign) return { success: false, reason: 'missing_data' };
     if (!participant.phone || !participant.referralCode) return { success: false, reason: 'missing_phone_or_code' };
-    
+
     // Get current buyer count
     const pricing = campaign.pricing || {};
     const participants = getParticipants(campaign.id);
     const currentBuyers = (pricing.initialBuyers || campaign.initialBuyers || 0) + participants.length;
-    
+
     // Get next tier
     const nextTier = getNextTierForCampaign(campaign);
     if (!nextTier) return { success: false, reason: 'no_next_tier' };
-    
+
     // Calculate buyers needed
     const buyersNeeded = nextTier.buyers - currentBuyers;
-    
+
     // Get Twilio config
     const twilio = campaign.twilio || getConfig().twilio || {};
     const domain = twilio.domain || getConfig().domain || 'https://your-domain.com';
-    
+
     // Format SMS message (no URL - they already have it from welcome SMS)
     const smsBody = `🚨 ${currentBuyers} buyers joined - ${buyersNeeded} left to unlock $${nextTier.price}, share your link!`;
-    
+
     try {
         const result = await sendSMS(participant.phone, smsBody, campaign.id);
         console.log(`[Reminder SMS] Success to ${participant.phone} for campaign ${campaign.id}:`, JSON.stringify(result.data?.sid || result));
@@ -323,51 +395,134 @@ async function sendReminderSMS(participant, campaign) {
 }
 
 /**
+ * Send end-of-drop SMS to a participant with their unlocked price and coupon code
+ * @param {Object} participant - Participant object
+ * @param {Object} campaign - Campaign object
+ * @param {number} finalPrice - Final unlocked price
+ * @param {string} couponCode - Coupon code for the unlocked price
+ * @returns {Promise<Object>} - SMS send result
+ */
+async function sendEndOfDropSMS(participant, campaign, finalPrice, couponCode) {
+    if (!participant || !campaign) return { success: false, reason: 'missing_data' };
+    if (!participant.phone) return { success: false, reason: 'missing_phone' };
+
+    // Get checkout URL
+    const pricing = campaign.pricing || {};
+    const checkoutUrl = pricing.checkoutUrl || campaign.checkoutUrl || 'https://shop.example.com/checkout';
+
+    // Format SMS message with 4-hour urgency
+    const smsBody = `End of the drop! You've unlocked $${finalPrice}. Use code ${couponCode} at checkout: ${checkoutUrl} - Coupon only valid for 4 hours`;
+
+    try {
+        const result = await sendSMS(participant.phone, smsBody, campaign.id);
+        console.log(`[End-of-Drop SMS] Success to ${participant.phone} for campaign ${campaign.id}:`, JSON.stringify(result.data?.sid || result));
+        return { success: true, result };
+    } catch (error) {
+        console.error(`[End-of-Drop SMS] Error to ${participant.phone} for campaign ${campaign.id}:`, error.message);
+        return { success: false, error: error.message };
+    }
+}
+
+/**
  * Check campaigns and send reminder SMS to referrers who haven't unlocked best price
+ * Also checks for ended campaigns and sends end-of-drop SMS to all participants
  * Runs every 15 minutes
  */
 async function scheduleReminderSMS() {
     const campaigns = getCampaigns();
     const now = Date.now();
-    
+
     for (const [campaignId, campaign] of Object.entries(campaigns)) {
+        const countdownEnd = new Date(campaign.countdownEnd).getTime();
+        const timeUntilEnd = countdownEnd - now;
+        const timeSinceEnd = now - countdownEnd;
+
+        // --- END OF DROP SMS CHECK ---
+        // Send end-of-drop SMS to all participants for campaigns that just ended (within last 15 min)
+        if (timeSinceEnd >= 0 && timeSinceEnd < END_OF_DROP_WINDOW) {
+            // Skip if end-of-drop SMS already sent for this campaign
+            if (endOfDropSentCampaigns.has(campaignId)) continue;
+
+            console.log(`[End-of-Drop SMS] Campaign ${campaignId} just ended (${Math.round(timeSinceEnd / 60000)}m ago), sending notifications...`);
+
+            // Get current buyer count
+            const pricing = campaign.pricing || {};
+            const participants = getParticipants(campaignId);
+            const currentBuyers = (pricing.initialBuyers || campaign.initialBuyers || 0) + participants.length;
+
+            // Calculate final price based on buyer count
+            const matchedTier = getPriceTierForBuyers(campaign, currentBuyers);
+
+            // Determine final price and coupon code
+            let finalPrice, couponCode;
+            if (matchedTier) {
+                finalPrice = matchedTier.price;
+                couponCode = matchedTier.couponCode || 'SAVE' + finalPrice;
+            } else {
+                // Below first tier - use initial price
+                finalPrice = pricing.initialPrice || campaign.initialPrice || campaign.originalPrice || 80;
+                couponCode = 'SAVE' + finalPrice;
+            }
+
+            // Send end-of-drop SMS to ALL participants
+            let sentCount = 0;
+            for (const participant of participants) {
+                // Skip if no phone number
+                if (!participant.phone) continue;
+
+                // Send end-of-drop SMS
+                const result = await sendEndOfDropSMS(participant, campaign, finalPrice, couponCode);
+                if (result.success) {
+                    sentCount++;
+                }
+
+                // Small delay to avoid rate limiting
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+
+            console.log(`[End-of-Drop SMS] Sent ${sentCount} notifications for campaign ${campaignId} (final price: $${finalPrice})`);
+
+            // Mark end-of-drop SMS as sent for this campaign
+            endOfDropSentCampaigns.add(campaignId);
+            continue; // Skip reminder check for this campaign
+        }
+
+        // --- REMINDER SMS CHECK ---
         // Skip if reminder already sent for this campaign
         if (reminderSentCampaigns.has(campaignId)) continue;
-        
+
         // Check if campaign has ended
-        const countdownEnd = new Date(campaign.countdownEnd).getTime();
         if (now >= countdownEnd) continue; // Campaign already ended
-        
+
         // Check if we're in the reminder window (between 1h45m and 2h15m before end)
-        const timeUntilEnd = countdownEnd - now;
         if (timeUntilEnd < REMINDER_WINDOW_START || timeUntilEnd > REMINDER_WINDOW_END) continue;
-        
+
         console.log(`[Reminder SMS] Campaign ${campaignId} is in reminder window (${Math.round(timeUntilEnd / 60000)}m until end)`);
-        
+
         // Get all participants for this campaign
         const participants = getParticipants(campaignId);
-        
+
         // Find participants with referral codes who haven't unlocked best price
         let sentCount = 0;
         for (const participant of participants) {
             // Skip if no referral code
             if (!participant.referralCode) continue;
-            
+
             // Skip if already unlocked best price
             if (hasUnlockedBestPrice(participant.referralCode, campaignId)) continue;
-            
+
             // Send reminder SMS
             const result = await sendReminderSMS(participant, campaign);
             if (result.success) {
                 sentCount++;
             }
-            
+
             // Small delay to avoid rate limiting
             await new Promise(resolve => setTimeout(resolve, 100));
         }
-        
+
         console.log(`[Reminder SMS] Sent ${sentCount} reminders for campaign ${campaignId}`);
-        
+
         // Mark reminder as sent for this campaign
         reminderSentCampaigns.add(campaignId);
     }
@@ -384,6 +539,44 @@ function checkRateLimit(ip) {
     requests.push(now);
     rateLimitMap.set(ip, requests);
     return { allowed: true };
+}
+
+// Check login rate limit (5 attempts per 15 minutes)
+function checkLoginRateLimit(ip) {
+    // Bypass rate limiting for localhost during development
+    if (isLocalhost(ip)) return { allowed: true };
+    
+    const now = Date.now();
+    const attempts = (loginAttemptsMap.get(ip) || []).filter(time => time > now - LOGIN_RATE_LIMIT_WINDOW);
+    
+    if (attempts.length >= LOGIN_RATE_LIMIT_MAX) {
+        const retryAfter = Math.ceil((attempts[0] + LOGIN_RATE_LIMIT_WINDOW - now) / 1000);
+        return { allowed: false, retryAfter };
+    }
+    
+    return { allowed: true, attempts };
+}
+
+// Record a login attempt
+function recordLoginAttempt(ip) {
+    if (isLocalhost(ip)) return;
+    
+    const now = Date.now();
+    const attempts = (loginAttemptsMap.get(ip) || []).filter(time => time > now - LOGIN_RATE_LIMIT_WINDOW);
+    attempts.push(now);
+    loginAttemptsMap.set(ip, attempts);
+}
+
+// Generate a simple JWT-like token
+function generateToken(username) {
+    const header = Buffer.from(JSON.stringify({ alg: 'none', typ: 'JWT' })).toString('base64url');
+    const payload = Buffer.from(JSON.stringify({
+        username: username,
+        iat: Math.floor(Date.now() / 1000),
+        exp: Math.floor(Date.now() / 1000) + (24 * 60 * 60) // 24 hours
+    })).toString('base64url');
+    const signature = 'none';
+    return `${header}.${payload}.${signature}`;
 }
 
 const MIME_TYPES = { '.html': 'text/html', '.css': 'text/css', '.js': 'application/javascript', '.json': 'application/json', '.png': 'image/png', '.jpg': 'image/jpeg', '.gif': 'image/gif' };
@@ -415,6 +608,50 @@ const server = http.createServer((req, res) => {
     const pathname = new URL(req.url, `http://${req.headers.host}`).pathname;
     
     // API Routes
+    
+    // Login endpoint
+    if (pathname === '/api/login' && req.method === 'POST') {
+        let body = '';
+        req.on('data', chunk => body += chunk);
+        req.on('end', () => {
+            try {
+                const data = JSON.parse(body);
+                const { username, password } = data;
+                
+                // Check login rate limit
+                const rateLimit = checkLoginRateLimit(clientIP);
+                if (!rateLimit.allowed) {
+                    setNoCacheHeaders(res);
+                    res.writeHead(429, { 'Content-Type': 'application/json', 'Retry-After': rateLimit.retryAfter });
+                    return res.end(JSON.stringify({ 
+                        error: 'Too many login attempts. Please try again later.',
+                        retryAfter: rateLimit.retryAfter 
+                    }));
+                }
+                
+                // Validate credentials
+                if (username === ADMIN_CREDENTIALS.username && password === ADMIN_CREDENTIALS.password) {
+                    // Generate token
+                    const token = generateToken(username);
+                    setNoCacheHeaders(res);
+                    res.writeHead(200, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ success: true, token }));
+                } else {
+                    // Record failed attempt
+                    recordLoginAttempt(clientIP);
+                    setNoCacheHeaders(res);
+                    res.writeHead(401, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: 'Invalid username or password' }));
+                }
+            } catch (e) {
+                setNoCacheHeaders(res);
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Invalid request data' }));
+            }
+        });
+        return;
+    }
+    
     if (pathname === '/api/campaigns' && req.method === 'GET') {
         const campaigns = getCampaigns();
         const list = Object.entries(campaigns).map(([id, data]) => ({ id, name: data.productName, merchant: data.merchantName, price: data.pricing?.initialPrice || data.originalPrice }));
@@ -476,6 +713,17 @@ const server = http.createServer((req, res) => {
         setNoCacheHeaders(res);
         res.writeHead(200, { 'Content-Type': 'application/json' });
         return res.end(JSON.stringify({ currentBuyers: (pricing.initialBuyers || campaign.initialBuyers || 0) + getParticipants(campaignId).length }));
+    }
+    
+    // Campaign stats endpoint (SMS sent count, etc.)
+    if (pathname.startsWith('/api/campaign/') && pathname.endsWith('/stats') && req.method === 'GET') {
+        const campaignId = pathname.split('/')[3];
+        const campaign = getCampaign(campaignId);
+        if (!campaign) { setNoCacheHeaders(res); res.writeHead(404); return res.end(JSON.stringify({ error: 'Campaign not found' })); }
+        const stats = getCampaignStats(campaignId);
+        setNoCacheHeaders(res);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify(stats));
     }
 
     // Export campaign participants as CSV
