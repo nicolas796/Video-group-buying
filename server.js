@@ -479,6 +479,12 @@ const server = http.createServer((req, res) => {
                 headers['Pragma'] = 'no-cache';
                 headers['Expires'] = '0';
             }
+            // Never cache campaigns.json - always serve fresh data
+            if (pathname === '/data/campaigns.json') {
+                headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, proxy-revalidate';
+                headers['Pragma'] = 'no-cache';
+                headers['Expires'] = '0';
+            }
             res.writeHead(200, headers);
             res.end(content);
         }

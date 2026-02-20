@@ -26,7 +26,8 @@ const CampaignLoader = (function() {
     }
     
     async function loadAllCampaigns() {
-        if (campaignsCache) return campaignsCache;
+        // Clear cache to ensure fresh data on each load (fixes stale cache issues)
+        campaignsCache = null;
         try {
             const response = await fetch(`/data/campaigns.json?t=${Date.now()}`);
             if (!response.ok) throw new Error(`Failed to load: ${response.status}`);
@@ -34,6 +35,7 @@ const CampaignLoader = (function() {
             return campaignsCache;
         } catch (error) {
             console.error('CampaignLoader: Error loading campaigns:', error);
+            campaignsCache = null; // Clear cache on error
             return null;
         }
     }
