@@ -12,7 +12,7 @@
     <div class="container">
         <!-- Upper Third: Video Player -->
         <div class="video-section">
-            <video id="video-player" controls playsinline autoplay loop muted></video>
+            <video id="video-player" controls playsinline autoplay loop muted crossorigin="anonymous"></video>
             <div id="loading" class="loading">Loading video...</div>
         </div>
         
@@ -190,7 +190,35 @@
             }
         })();
     </script>
-    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <!-- Brave browser fix for black video screen with ref= parameter -->
+<script>
+(function() {
+    // Detect Brave browser
+    function isBrave() {
+        return navigator.brave && navigator.brave.isBrave ? true : false;
+    }
+    
+    // Check if URL has ref parameter
+    function hasRefParam() {
+        return window.location.search.includes('ref=');
+    }
+    
+    // Apply fix if Brave and ref param detected
+    if (isBrave() && hasRefParam()) {
+        document.addEventListener('DOMContentLoaded', function() {
+            const video = document.getElementById('video-player');
+            if (video) {
+                video.classList.add('brave-fix');
+                // Force a repaint to ensure the fix takes effect
+                video.style.display = 'none';
+                void video.offsetHeight; // Trigger reflow
+                video.style.display = '';
+            }
+        });
+    }
+})();
+</script>
+<script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <script src="campaign-loader.js"></script>
     <script src="app.js"></script>
 </body>

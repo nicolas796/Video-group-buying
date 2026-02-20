@@ -54,6 +54,17 @@ html, body {
     object-fit: contain;
     -webkit-transform: translateZ(0);
     transform: translateZ(0);
+    will-change: transform;
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+}
+
+/* Brave browser fix for black video screen with ref= parameter */
+#video-player.brave-fix {
+    -webkit-transform: translateZ(0) scale(1.0);
+    transform: translateZ(0) scale(1.0);
+    will-change: auto;
+    image-rendering: auto;
 }
 
 .loading {
