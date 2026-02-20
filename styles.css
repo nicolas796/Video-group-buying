@@ -35,9 +35,9 @@ html, body {
     max-height: -webkit-fill-available;
 }
 
-/* Video Section - Top 1/3 on mobile */
+/* Video Section - Smaller on mobile to fit product */
 .video-section {
-    height: 33.333%;
+    height: 28%;
     width: 100%;
     background: #000;
     position: relative;
@@ -45,7 +45,7 @@ html, body {
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-    min-height: 150px;
+    min-height: 120px;
 }
 
 #video-player {
@@ -70,14 +70,14 @@ html, body {
     display: block;
 }
 
-/* Content Section - Bottom 2/3 on mobile */
+/* Content Section - More space for product on mobile */
 .content-section {
-    height: 66.667%;
+    height: 72%;
     width: 100%;
     background: #fff;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
-    padding: 24px 20px;
+    padding: 16px 16px;
     flex: 1;
 }
 
@@ -85,24 +85,65 @@ html, body {
    TABLET & DESKTOP - Side by side layout
    ============================================ */
 
-/* Tablet: 60/40 split */
+/* Tablet: 55/45 split with desktop-like experience */
 @media (min-width: 768px) and (max-width: 1023px) {
     .container {
         flex-direction: row;
     }
     
     .video-section {
-        width: 60% !important;
+        width: 55% !important;
         height: 100% !important;
         min-height: auto !important;
     }
     
     .content-section {
-        width: 40% !important;
+        width: 45% !important;
         height: 100% !important;
         max-height: 100vh;
         border-left: 1px solid #e5e7eb;
         padding: 20px 16px;
+    }
+    
+    /* Always show description on tablet (like desktop) */
+    .info-btn {
+        display: none !important;
+    }
+    
+    .product-details {
+        max-height: none !important;
+        overflow: visible !important;
+        margin-top: 12px !important;
+    }
+    
+    /* Slightly smaller than desktop but bigger than mobile */
+    .product-mini img {
+        width: 100px !important;
+        height: 100px !important;
+    }
+    
+    .product-mini-info .product-name {
+        font-size: 16px !important;
+    }
+    
+    .price-tag .current-price {
+        font-size: 28px !important;
+    }
+    
+    .price-tag .initial-price {
+        font-size: 16px !important;
+    }
+    
+    .details-content h4 {
+        font-size: 15px;
+    }
+    
+    .details-content p {
+        font-size: 14px;
+    }
+    
+    .details-content li {
+        font-size: 13px;
     }
 }
 
@@ -125,6 +166,111 @@ html, body {
         border-left: 1px solid #e5e7eb;
         padding: 24px 20px;
     }
+    
+    /* Hide expand button on desktop - always show description */
+    .info-btn {
+        display: none !important;
+    }
+    
+    /* Always show product details on desktop */
+    .product-details {
+        max-height: none !important;
+        overflow: visible !important;
+        margin-top: 16px !important;
+    }
+    
+    /* Larger, more readable description text */
+    .details-content {
+        padding: 20px;
+    }
+    
+    .details-content h4 {
+        font-size: 18px;
+        margin-bottom: 12px;
+    }
+    
+    .details-content p {
+        font-size: 16px;
+        line-height: 1.6;
+        margin-bottom: 14px;
+    }
+    
+    .details-content li {
+        font-size: 15px;
+        padding: 6px 0;
+        padding-left: 20px;
+        line-height: 1.5;
+    }
+    
+    /* More space for product section */
+    .product-progress-compact {
+        padding: 16px;
+    }
+    
+    /* Larger product name on desktop */
+    .product-mini-info .product-name {
+        font-size: 16px;
+    }
+    
+    /* Bigger price */
+    .price-tag .current-price {
+        font-size: 28px;
+    }
+    
+    /* Product image 25% bigger */
+    .product-mini img {
+        width: 140px !important;
+        height: 140px !important;
+    }
+    
+    /* Larger product name */
+    .product-mini-info .product-name {
+        font-size: 18px;
+    }
+    
+    /* Bigger current price and compare-at price */
+    .price-tag .current-price {
+        font-size: 36px;
+    }
+    
+    .price-tag .initial-price {
+        font-size: 20px;
+    }
+    
+    /* Even larger description text */
+    .details-content h4 {
+        font-size: 20px;
+    }
+    
+    .details-content p {
+        font-size: 18px;
+    }
+    
+    .details-content li {
+        font-size: 17px;
+    }
+    
+    /* +25% bigger prices and product name */
+    .price-tag .current-price {
+        font-size: 45px !important;
+    }
+    
+    .price-tag .initial-price {
+        font-size: 25px !important;
+    }
+    
+    .product-mini-info .product-name {
+        font-size: 23px !important;
+    }
+    
+    /* +50% bigger unlock text and buyer count */
+    .unlocked-text {
+        font-size: 18px !important;
+    }
+    
+    .counter-inline {
+        font-size: 21px !important;
+    }
 }
 
 /* ============================================
@@ -141,7 +287,7 @@ html, body {
 }
 
 .counter-inline {
-    font-size: 14px;
+    font-size: 18px;
     color: #666;
 }
 
@@ -186,8 +332,8 @@ html, body {
 }
 
 .product-mini img {
-    width: 56px;
-    height: 56px;
+    width: 88px;
+    height: 88px;
     border-radius: 8px;
     object-fit: cover;
     background: #fff;
@@ -199,7 +345,7 @@ html, body {
 }
 
 .product-mini-info .product-name {
-    font-size: 14px;
+    font-size: 18px;
     font-weight: 600;
     color: #1a1a1a;
     line-height: 1.3;
@@ -213,13 +359,13 @@ html, body {
 }
 
 .price-tag .initial-price {
-    font-size: 14px;
+    font-size: 18px;
     color: #9ca3af;
     text-decoration: line-through;
 }
 
 .price-tag .current-price {
-    font-size: 24px;
+    font-size: 30px;
     font-weight: 700;
     color: #1a1a1a;
 }
@@ -240,7 +386,7 @@ html, body {
 }
 
 .unlocked-text {
-    font-size: 12px;
+    font-size: 19px;
     color: #22c55e;
     font-weight: 600;
     text-align: center;
@@ -312,14 +458,14 @@ html, body {
 }
 
 .details-content h4 {
-    font-size: 14px;
+    font-size: 18px;
     font-weight: 700;
     color: #1a1a1a;
     margin-bottom: 8px;
 }
 
 .details-content p {
-    font-size: 13px;
+    font-size: 16px;
     color: #4b5563;
     margin-bottom: 10px;
     font-weight: 500;
@@ -332,7 +478,7 @@ html, body {
 }
 
 .details-content li {
-    font-size: 12px;
+    font-size: 15px;
     color: #6b7280;
     padding: 4px 0;
     padding-left: 16px;
@@ -943,14 +1089,115 @@ html, body {
     }
 }
 
-/* Mobile specific */
-@media (max-width: 480px) {
+/* Mobile specific - iPhone 12 Pro and similar (390px width) */
+@media (max-width: 400px) {
     .title {
         font-size: 24px;
     }
     
     .countdown {
         font-size: 24px;
+    }
+    
+    /* Balanced spacing for iPhone 12 Pro */
+    .content-section {
+        padding: 14px 14px;
+    }
+    
+    /* Join box - slightly more breathing room */
+    .join-box {
+        padding: 14px;
+        margin-bottom: 10px;
+        border-radius: 14px;
+    }
+    
+    .join-box h2 {
+        font-size: 17px;
+        margin-bottom: 10px;
+    }
+    
+    .input-row {
+        gap: 8px;
+        margin-bottom: 10px;
+    }
+    
+    .input-group input {
+        padding: 11px;
+        font-size: 15px;
+    }
+    
+    .join-btn {
+        padding: 13px;
+        font-size: 15px;
+    }
+    
+    /* Countdown - balanced */
+    .countdown-section.landing {
+        padding: 8px 12px;
+        margin-bottom: 10px;
+    }
+    
+    .countdown-section.landing .countdown {
+        font-size: 22px;
+    }
+    
+    .countdown-section.landing .countdown-label {
+        font-size: 11px;
+    }
+    
+    /* Social proof */
+    .social-proof {
+        margin-bottom: 10px;
+    }
+    
+    /* Product section - more space */
+    .product-progress-compact {
+        padding: 12px;
+    }
+}
+
+/* Smaller phones - more compact */
+@media (max-width: 360px) {
+    /* Compact join box */
+    .join-box {
+        padding: 10px;
+        margin-bottom: 6px;
+    }
+    
+    .join-box h2 {
+        font-size: 15px;
+        margin-bottom: 6px;
+    }
+    
+    .input-row {
+        gap: 6px;
+        margin-bottom: 6px;
+    }
+    
+    .input-group input {
+        padding: 8px;
+        font-size: 14px;
+    }
+    
+    .join-btn {
+        padding: 10px;
+        font-size: 14px;
+    }
+    
+    /* Compact countdown */
+    .countdown-section.landing {
+        padding: 6px 10px;
+        margin-bottom: 6px;
+    }
+    
+    /* Compact social proof */
+    .social-proof {
+        margin-bottom: 6px;
+    }
+    
+    /* Compact product section */
+    .product-progress-compact {
+        padding: 8px;
     }
 }
 
