@@ -207,18 +207,171 @@ async function sendWelcomeSMS(phone, referralCode, campaignId = null) {
     const domain = twilio.domain || getConfig().domain || 'https://your-domain.com';
     const referralsNeeded = campaign?.referralsNeeded || campaign?.sharesRequired || DEFAULT_REFERRALS_NEEDED;
     const smsBody = `You're in the drop! 🎉 Share your link to unlock $${bestPrice}: ${domain}/?v=${campaignId}&ref=${referralCode} - Get ${referralsNeeded} friends to join! Reply STOP to unsubscribe.`;
-    try { 
+    try {
         const result = await sendSMS(phone, smsBody, campaignId);
         console.log(`[Twilio SMS] Success to ${phone}:`, JSON.stringify(result.data?.sid || result));
         return result;
-    } catch (error) { 
+    } catch (error) {
         console.error(`[Twilio SMS] Error to ${phone}:`, error.message);
-        return { success: false, error: error.message }; 
+        return { success: false, error: error.message };
+    }
+}
+
+async function sendUnlockSMS(referrerPhone, referralCode, campaignId) {
+    const campaign = getCampaign(campaignId);
+    if (!campaign) return { success: false, reason: 'campaign_not_found' };
+
+    const pricing = campaign.pricing || {};
+    const tiers = pricing.tiers || campaign.priceTiers || [];
+
+    // Get best price (minimum price from all tiers)
+    const bestPrice = tiers.length > 0 ? Math.min(...tiers.map(t => t.price)) : 20;
+
+    // Get coupon code from the tier with the best price
+    const bestTier = tiers.find(t => t.price === bestPrice) || {};
+    const couponCode = bestTier.couponCode || 'SAVE20';
+
+    // Get checkout URL
+    const checkoutUrl = pricing.checkoutUrl || campaign.checkoutUrl || 'https://shop.example.com/checkout';
+
+    const smsBody = `Congrats! You've unlocked $${bestPrice}! Use code ${couponCode} at checkout: ${checkoutUrl}`;
+
+    try {
+        const result = await sendSMS(referrerPhone, smsBody, campaignId);
+        console.log(`[Twilio SMS Unlock] Success to ${referrerPhone}:`, JSON.stringify(result.data?.sid || result));
+        return result;
+    } catch (error) {
+        console.error(`[Twilio SMS Unlock] Error to ${referrerPhone}:`, error.message);
+        return { success: false, error: error.message };
     }
 }
 
 const rateLimitMap = new Map();
 const LOCALHOST_IPS = ['127.0.0.1', '::1', '::ffff:127.0.0.1'];
+
+// Track campaigns that have had reminder SMS sent (to avoid duplicates)
+const reminderSentCampaigns = new Set();
+const REMINDER_CHECK_INTERVAL = 15 * 60 * 1000; // 15 minutes
+const REMINDER_WINDOW_START = 1 * 60 * 60 * 1000 + 45 * 60 * 1000; // 1h45m before end
+const REMINDER_WINDOW_END = 2 * 60 * 60 * 1000 + 15 * 60 * 1000; // 2h15m before end
+
+/**
+ * Get the next pricing tier for a campaign (lowest tier where buyers > currentBuyers)
+ * @param {Object} campaign - Campaign object
+ * @returns {Object|null} - Next tier object or null if no next tier
+ */
+function getNextTierForCampaign(campaign) {
+    if (!campaign) return null;
+    
+    const pricing = campaign.pricing || {};
+    const tiers = pricing.tiers || campaign.priceTiers || [];
+    if (tiers.length === 0) return null;
+    
+    const participants = getParticipants(campaign.id);
+    const currentBuyers = (pricing.initialBuyers || campaign.initialBuyers || 0) + participants.length;
+    
+    // Sort tiers by buyer count ascending
+    const sortedTiers = [...tiers].sort((a, b) => a.buyers - b.buyers);
+    
+    // Find the first tier with more buyers than current
+    for (const tier of sortedTiers) {
+        if (tier.buyers > currentBuyers) {
+            return tier;
+        }
+    }
+    
+    return null; // All tiers unlocked
+}
+
+/**
+ * Send reminder SMS to a participant about the campaign ending soon
+ * @param {Object} participant - Participant object
+ * @param {Object} campaign - Campaign object
+ * @returns {Promise<Object>} - SMS send result
+ */
+async function sendReminderSMS(participant, campaign) {
+    if (!participant || !campaign) return { success: false, reason: 'missing_data' };
+    if (!participant.phone || !participant.referralCode) return { success: false, reason: 'missing_phone_or_code' };
+    
+    // Get current buyer count
+    const pricing = campaign.pricing || {};
+    const participants = getParticipants(campaign.id);
+    const currentBuyers = (pricing.initialBuyers || campaign.initialBuyers || 0) + participants.length;
+    
+    // Get next tier
+    const nextTier = getNextTierForCampaign(campaign);
+    if (!nextTier) return { success: false, reason: 'no_next_tier' };
+    
+    // Calculate buyers needed
+    const buyersNeeded = nextTier.buyers - currentBuyers;
+    
+    // Get Twilio config
+    const twilio = campaign.twilio || getConfig().twilio || {};
+    const domain = twilio.domain || getConfig().domain || 'https://your-domain.com';
+    
+    // Format SMS message (no URL - they already have it from welcome SMS)
+    const smsBody = `🚨 ${currentBuyers} buyers joined - ${buyersNeeded} left to unlock $${nextTier.price}, share your link!`;
+    
+    try {
+        const result = await sendSMS(participant.phone, smsBody, campaign.id);
+        console.log(`[Reminder SMS] Success to ${participant.phone} for campaign ${campaign.id}:`, JSON.stringify(result.data?.sid || result));
+        return { success: true, result };
+    } catch (error) {
+        console.error(`[Reminder SMS] Error to ${participant.phone} for campaign ${campaign.id}:`, error.message);
+        return { success: false, error: error.message };
+    }
+}
+
+/**
+ * Check campaigns and send reminder SMS to referrers who haven't unlocked best price
+ * Runs every 15 minutes
+ */
+async function scheduleReminderSMS() {
+    const campaigns = getCampaigns();
+    const now = Date.now();
+    
+    for (const [campaignId, campaign] of Object.entries(campaigns)) {
+        // Skip if reminder already sent for this campaign
+        if (reminderSentCampaigns.has(campaignId)) continue;
+        
+        // Check if campaign has ended
+        const countdownEnd = new Date(campaign.countdownEnd).getTime();
+        if (now >= countdownEnd) continue; // Campaign already ended
+        
+        // Check if we're in the reminder window (between 1h45m and 2h15m before end)
+        const timeUntilEnd = countdownEnd - now;
+        if (timeUntilEnd < REMINDER_WINDOW_START || timeUntilEnd > REMINDER_WINDOW_END) continue;
+        
+        console.log(`[Reminder SMS] Campaign ${campaignId} is in reminder window (${Math.round(timeUntilEnd / 60000)}m until end)`);
+        
+        // Get all participants for this campaign
+        const participants = getParticipants(campaignId);
+        
+        // Find participants with referral codes who haven't unlocked best price
+        let sentCount = 0;
+        for (const participant of participants) {
+            // Skip if no referral code
+            if (!participant.referralCode) continue;
+            
+            // Skip if already unlocked best price
+            if (hasUnlockedBestPrice(participant.referralCode, campaignId)) continue;
+            
+            // Send reminder SMS
+            const result = await sendReminderSMS(participant, campaign);
+            if (result.success) {
+                sentCount++;
+            }
+            
+            // Small delay to avoid rate limiting
+            await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        
+        console.log(`[Reminder SMS] Sent ${sentCount} reminders for campaign ${campaignId}`);
+        
+        // Mark reminder as sent for this campaign
+        reminderSentCampaigns.add(campaignId);
+    }
+}
 function isLocalhost(ip) {
     return LOCALHOST_IPS.includes(ip) || ip?.startsWith('127.') || ip === 'localhost';
 }
@@ -419,12 +572,37 @@ const server = http.createServer((req, res) => {
                 if (data.campaignId && !getCampaign(data.campaignId)) { setNoCacheHeaders(res); res.writeHead(404); return res.end(JSON.stringify({ error: 'Campaign not found' })); }
                 const existing = findParticipantByPhone(data.phone, data.campaignId);
                 if (existing) { setNoCacheHeaders(res); res.writeHead(409); return res.end(JSON.stringify({ error: 'Already joined', alreadyJoined: true, referralCode: existing.referralCode })); }
+
+                // Check if referrer was already unlocked BEFORE adding participant
+                let wasUnlocked = false;
+                if (data.referredBy) {
+                    wasUnlocked = hasUnlockedBestPrice(data.referredBy, data.campaignId);
+                }
+
                 const participant = addParticipant(data.phone, data.email, data.referredBy, data.campaignId);
                 if (!participant) { setNoCacheHeaders(res); res.writeHead(500); return res.end(JSON.stringify({ error: 'Failed to save' })); }
                 sendWelcomeSMS(data.phone, participant.referralCode, data.campaignId);
+
+                // Check if referrer just unlocked best price and send SMS if so
+                let referrerUnlocked = false;
+                if (data.referredBy) {
+                    const newCount = getReferralCount(data.referredBy, data.campaignId);
+                    const campaign = getCampaign(data.campaignId);
+                    const needed = Math.min(campaign?.referralsNeeded || campaign?.sharesRequired || DEFAULT_REFERRALS_NEEDED, MAX_REFERRALS);
+                    referrerUnlocked = newCount >= needed;
+
+                    // If just unlocked now (wasn't unlocked before), send unlock SMS
+                    if (referrerUnlocked && !wasUnlocked) {
+                        const referrer = getParticipants(data.campaignId).find(p => p.referralCode === data.referredBy);
+                        if (referrer) {
+                            sendUnlockSMS(referrer.phone, data.referredBy, data.campaignId);
+                        }
+                    }
+                }
+
                 setNoCacheHeaders(res);
                 res.writeHead(200, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ success: true, referralCode: participant.referralCode, referrerUnlocked: data.referredBy ? hasUnlockedBestPrice(data.referredBy, data.campaignId) : false }));
+                res.end(JSON.stringify({ success: true, referralCode: participant.referralCode, referrerUnlocked }));
             } catch (e) { setNoCacheHeaders(res); res.writeHead(400); res.end(JSON.stringify({ error: 'Invalid data' })); }
         });
         return;
@@ -494,6 +672,11 @@ const server = http.createServer((req, res) => {
 server.listen(PORT, () => {
     console.log(`🎯 Group Buying Server running at http://localhost:${PORT}`);
     console.log(`Campaigns: ${Object.keys(getCampaigns()).join(', ') || 'none'}`);
+    
+    // Start the reminder SMS scheduler
+    console.log(`[Reminder SMS] Starting scheduler (checking every ${REMINDER_CHECK_INTERVAL / 60000} minutes)`);
+    scheduleReminderSMS(); // Run immediately on startup
+    setInterval(scheduleReminderSMS, REMINDER_CHECK_INTERVAL);
 });
 
 process.on('SIGTERM', () => { server.close(() => process.exit(0)); });
