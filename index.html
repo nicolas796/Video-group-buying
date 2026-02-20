@@ -85,11 +85,20 @@
             
             <!-- Success View (Hidden initially) -->
             <div id="success-view" class="hidden">
+                <!-- Share Section - MOVED TO TOP for mobile priority -->
+                <div class="share-section">
+                    <p>Share to unlock the best price!</p>
+                    <button class="share-btn" id="share-btn" onclick="shareReferral()">
+                        <span>📤 Share with friends</span>
+                    </button>
+                    <p class="referral-hint">2 friends join = instant $<span id="share-best-price">20</span> price</p>
+                </div>
+
                 <div class="success-message">
                     <h2>You're in! 🎉</h2>
                     <p>Watch the price drop as more people join.</p>
                 </div>
-                
+
                 <!-- Referral Status -->
                 <div class="referral-status" id="referral-status">
                     <div class="referral-progress" id="referral-progress">
@@ -105,7 +114,7 @@
                         <p class="unlocked-price">You got $<span id="unlocked-price-value">20</span>!</p>
                     </div>
                 </div>
-                
+
                 <!-- Progress Bar (carries over) -->
                 <div class="progress-section compact">
                     <div class="product-display compact">
@@ -120,19 +129,19 @@
                             <span class="current-price small" id="current-price-success"></span>
                         </div>
                     </div>
-                    
+
                     <div class="counter small">
                         <span id="buyer-count-success">742</span> buyers already joined
                     </div>
-                    
+
                     <div class="progress-bar-container">
                         <div class="progress-bar" id="progress-bar-success"></div>
                         <div class="tier-markers" id="tier-markers-success"></div>
                     </div>
-                    
+
                     <div class="tier-labels" id="tier-labels-success"></div>
                 </div>
-                
+
                 <!-- Countdown -->
                 <div class="countdown-section">
                     <p class="countdown-label">Drop ends in:</p>
@@ -142,14 +151,6 @@
                         <span id="minutes">00</span>m
                         <span id="seconds">00</span>s
                     </div>
-                </div>
-                
-                <div class="share-section">
-                    <p>Share to unlock the best price!</p>
-                    <button class="share-btn" id="share-btn" onclick="shareReferral()">
-                        <span>📤 Share with friends</span>
-                    </button>
-                    <p class="referral-hint">2 friends join = instant $<span id="share-best-price">20</span> price</p>
                 </div>
             </div>
         </div>

@@ -1171,6 +1171,44 @@ html, body {
     font-weight: 500;
 }
 
+/* Mobile: Share section at top - compact styling */
+@media (max-width: 767px) {
+    #success-view .share-section {
+        margin-bottom: 12px;
+        padding: 12px;
+        background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+        border: 1px solid #3b82f6;
+        border-radius: 12px;
+    }
+
+    #success-view .share-section > p {
+        font-size: 13px;
+        margin-bottom: 8px;
+        color: #1e40af;
+    }
+
+    #success-view .share-section .share-btn {
+        padding: 12px 20px;
+        font-size: 15px;
+        border-radius: 10px;
+    }
+
+    #success-view .share-section .referral-hint {
+        font-size: 11px;
+        margin-top: 6px;
+        color: #1d4ed8;
+    }
+
+    /* Adjust success message spacing after share section */
+    #success-view .success-message {
+        margin-bottom: 16px;
+    }
+
+    #success-view .success-message h2 {
+        font-size: 22px;
+    }
+}
+
 .share-btn {
     width: 100%;
     padding: 16px 24px;
