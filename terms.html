@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Terms & Conditions - eStreamly Group Buying</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 50%, #16213e 100%);
+            color: #e4e4e7;
+            line-height: 1.7;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 40px 24px;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 48px;
+            padding-bottom: 32px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .logo {
+            font-size: 28px;
+            font-weight: 800;
+            background: linear-gradient(135deg, #FF4D8F, #FF8F4D);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 12px;
+        }
+
+        header h1 {
+            font-size: 32px;
+            font-weight: 700;
+            color: #ffffff;
+            margin-bottom: 8px;
+        }
+
+        header p {
+            color: #9ca3af;
+            font-size: 16px;
+        }
+
+        .last-updated {
+            display: inline-block;
+            background: rgba(255, 77, 143, 0.15);
+            color: #FF4D8F;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 500;
+            margin-top: 16px;
+        }
+
+        section {
+            margin-bottom: 48px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 16px;
+            padding: 32px;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        section h2 {
+            font-size: 22px;
+            font-weight: 700;
+            color: #ffffff;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        section h2 .icon {
+            width: 36px;
+            height: 36px;
+            background: linear-gradient(135deg, #FF4D8F, #FF8F4D);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+
+        section h3 {
+            font-size: 18px;
+            font-weight: 600;
+            color: #f3f4f6;
+            margin-top: 24px;
+            margin-bottom: 12px;
+        }
+
+        section p {
+            color: #b4b4b8;
+            margin-bottom: 16px;
+        }
+
+        section ul, section ol {
+            margin-left: 24px;
+            margin-bottom: 16px;
+            color: #b4b4b8;
+        }
+
+        section li {
+            margin-bottom: 8px;
+        }
+
+        .highlight-box {
+            background: linear-gradient(135deg, rgba(255, 77, 143, 0.1), rgba(255, 143, 77, 0.1));
+            border-left: 4px solid #FF4D8F;
+            padding: 20px;
+            border-radius: 0 12px 12px 0;
+            margin: 20px 0;
+        }
+
+        .highlight-box p {
+            margin-bottom: 0;
+            color: #e4e4e7;
+        }
+
+        .sms-info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin: 24px 0;
+        }
+
+        .sms-info-card {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .sms-info-card .label {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #9ca3af;
+            margin-bottom: 8px;
+        }
+
+        .sms-info-card .value {
+            font-size: 20px;
+            font-weight: 700;
+            color: #ffffff;
+        }
+
+        .command-tag {
+            display: inline-block;
+            background: rgba(255, 255, 255, 0.1);
+            color: #FF8F4D;
+            padding: 4px 12px;
+            border-radius: 6px;
+            font-family: monospace;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        footer {
+            text-align: center;
+            padding-top: 32px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            color: #6b7280;
+            font-size: 14px;
+        }
+
+        footer a {
+            color: #FF4D8F;
+            text-decoration: none;
+        }
+
+        footer a:hover {
+            text-decoration: underline;
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                padding: 24px 16px;
+            }
+
+            header h1 {
+                font-size: 26px;
+            }
+
+            section {
+                padding: 24px 20px;
+            }
+
+            section h2 {
+                font-size: 20px;
+            }
+
+            .sms-info-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">eStreamly</div>
+            <h1>Terms & Conditions</h1>
+            <p>Group Buying Service & SMS Messaging</p>
+            <span class="last-updated">Last Updated: February 2025</span>
+        </header>
+
+        <section>
+            <h2>
+                <span class="icon">📱</span>
+                SMS Terms & Conditions
+            </h2>
+            
+            <p>By providing your mobile phone number and joining a drop, you consent to receive text messages from eStreamly and our partner brands regarding your participation in group buying campaigns.</p>
+
+            <h3>Message Frequency</h3>
+            <div class="sms-info-grid">
+                <div class="sms-info-card">
+                    <div class="label">Welcome SMS</div>
+                    <div class="value">1 per join</div>
+                </div>
+                <div class="sms-info-card">
+                    <div class="label">Reminders</div>
+                    <div class="value">~1 per drop</div>
+                </div>
+                <div class="sms-info-card">
+                    <div class="label">Unlock Alerts</div>
+                    <div class="value">As earned</div>
+                </div>
+                <div class="sms-info-card">
+                    <div class="label">End-of-Drop</div>
+                    <div class="value">1 per drop</div>
+                </div>
+            </div>
+            <p>You will typically receive <strong>2-4 messages</strong> per campaign you join, depending on your activity and campaign progress. Message frequency may vary based on participation.</p>
+
+            <h3>Message Types & Content</h3>
+            <p>Messages you may receive include:</p>
+            <ul>
+                <li><strong>Welcome SMS:</strong> Confirmation of your participation with your unique referral link</li>
+                <li><strong>Reminder SMS:</strong> Alerts sent approximately 2 hours before the drop ends if you haven't unlocked the best price</li>
+                <li><strong>Unlock SMS:</strong> Congratulations message when you or enough friends join to unlock a better price</li>
+                <li><strong>End-of-Drop SMS:</strong> Final notification with your unlocked price and checkout instructions when the campaign ends</li>
+                <li><strong>Subscription Management:</strong> Responses to STOP, START, or HELP requests</li>
+            </ul>
+
+            <h3>Opt-Out Instructions</h3>
+            <div class="highlight-box">
+                <p>You can cancel SMS messages at any time by replying <span class="command-tag">STOP</span>, <span class="command-tag">UNSUBSCRIBE</span>, or <span class="command-tag">CANCEL</span> to any message you receive. You will receive a confirmation of your opt-out.</p>
+            </div>
+            <p>Once opted out, you will no longer receive promotional or campaign-related SMS messages. To resubscribe, reply <span class="command-tag">START</span>, <span class="command-tag">YES</span>, or <span class="command-tag">SUBSCRIBE</span>.</p>
+
+            <h3>Help & Support</h3>
+            <div class="highlight-box">
+                <p>For help or assistance with SMS messages, reply <span class="command-tag">HELP</span> to any message, or contact us directly at the email below.</p>
+            </div>
+
+            <h3>Carrier Disclaimers</h3>
+            <p><strong>Message and data rates may apply</strong> based on your mobile carrier and plan. eStreamly is not responsible for any charges incurred from receiving text messages.</p>
+            <p>Carriers are not liable for delayed or undelivered messages. Delivery is subject to your carrier's network availability and terms.</p>
+        </section>
+
+        <section>
+            <h2>
+                <span class="icon">🛒</span>
+                Group Buying Terms
+            </h2>
+
+            <h3>How Drops Work</h3>
+            <p>eStreamly's group buying platform allows consumers to unlock better prices as more people join a campaign ("drop"):</p>
+            <ol>
+                <li>Join a drop by providing your phone number and email</li>
+                <li>Share your unique referral link with friends</li>
+                <li>As more buyers join, everyone unlocks better prices</li>
+                <li>When the drop ends, you'll receive your final unlocked price and checkout instructions</li>
+            </ol>
+
+            <h3>Pricing Tiers</h3>
+            <p>Each drop has multiple price tiers based on buyer count:</p>
+            <ul>
+                <li><strong>Initial Price:</strong> The starting price when the drop begins</li>
+                <li><strong>Tier Prices:</strong> Lower prices unlocked at specific buyer milestones (e.g., 100, 500, 1000 buyers)</li>
+                <li><strong>Best Price:</strong> The lowest possible price, typically unlocked via referrals or high participation</li>
+            </ul>
+            <p>All prices are in USD unless otherwise specified. The price you pay is determined at the end of the drop based on total participation.</p>
+
+            <h3>Referral Program</h3>
+            <p>You can unlock the best price instantly by referring friends:</p>
+            <ul>
+                <li>Each drop specifies how many referrals are needed to unlock the best price</li>
+                <li>Referred friends must join using your unique referral link</li>
+                <li>Referrals are tracked and verified automatically</li>
+                <li>Once you reach the referral threshold, you'll be notified immediately via SMS</li>
+            </ul>
+            <p>Referral requirements may vary by campaign. Abuse of the referral system (fake accounts, bots, etc.) will result in disqualification.</p>
+
+            <h3>Checkout & Coupon Codes</h3>
+            <p>When a drop ends:</p>
+            <ol>
+                <li>You'll receive an SMS with your unlocked price and a unique coupon code</li>
+                <li>Coupon codes are typically valid for 4 hours after the drop ends</li>
+                <li>Use the provided checkout URL and apply your coupon code to complete your purchase</li>
+                <li>Expired coupons cannot be extended or reissued</li>
+            </ol>
+            <p>All purchases are completed through the brand's own checkout system. eStreamly facilitates the group discount but does not process payments.</p>
+        </section>
+
+        <section>
+            <h2>
+                <span class="icon">🔒</span>
+                Privacy & Data Usage
+            </h2>
+
+            <h3>Phone Number Collection</h3>
+            <p>We collect your mobile phone number to:</p>
+            <ul>
+                <li>Send campaign-related updates and notifications</li>
+                <li>Deliver your referral link for sharing</li>
+                <li>Notify you of price unlocks and campaign milestones</li>
+                <li>Provide end-of-drop checkout instructions</li>
+            </ul>
+            <p>Your phone number is stored securely and is not sold to third parties. We may share your phone number with the brand whose drop you joined for fulfillment purposes.</p>
+
+            <h3>Email Collection</h3>
+            <p>We collect your email address to:</p>
+            <ul>
+                <li>Associate your participation with your contact information</li>
+                <li>Provide backup communication if SMS fails</li>
+                <li>Send optional marketing communications (if you opt-in)</li>
+            </ul>
+
+            <h3>Data Sharing with Brands</h3>
+            <p>When you join a drop, the following information may be shared with the brand offering the product:</p>
+            <ul>
+                <li>Your phone number (for fulfillment and support)</li>
+                <li>Your email address</li>
+                <li>Your unlocked price tier and coupon code</li>
+                <li>Date/time of your participation</li>
+            </ul>
+            <p>Brands are contractually obligated to use this data only for order fulfillment and may not use it for unrelated marketing without additional consent.</p>
+        </section>
+
+        <section>
+            <h2>
+                <span class="icon">📋</span>
+                General Terms
+            </h2>
+
+            <h3>Eligibility</h3>
+            <p>You must be at least 18 years old and have a valid U.S. mobile phone number to participate. Each person may only join a specific drop once. Multiple entries using different phone numbers or emails by the same person may result in disqualification.</p>
+
+            <h3>Campaign Modifications</h3>
+            <p>eStreamly and partner brands reserve the right to modify, suspend, or cancel any drop at any time. In the event of cancellation, participants will be notified via SMS.</p>
+
+            <h3>Product Availability</h3>
+            <p>Unlocked prices do not guarantee product availability. All purchases are subject to inventory limits and brand terms of sale.</p>
+
+            <h3>Limitation of Liability</h3>
+            <p>eStreamly provides the platform for group buying but is not responsible for:</p>
+            <ul>
+                <li>Product quality, shipping, or fulfillment (contact the brand directly)</li>
+                <li>Technical issues preventing participation or message delivery</li>
+                <li>Expired coupons due to user inaction</li>
+                <li>Charges from your mobile carrier for SMS messages</li>
+            </ul>
+        </section>
+
+        <section>
+            <h2>
+                <span class="icon">📞</span>
+                Contact Information
+            </h2>
+            <p>If you have questions about these Terms & Conditions, need assistance with SMS messages, or have privacy concerns, please contact us:</p>
+            
+            <div class="highlight-box">
+                <p><strong>Email:</strong> <a href="mailto:hello@estreamly.com" style="color: #FF8F4D;">hello@estreamly.com</a></p>
+                <p style="margin-top: 12px; margin-bottom: 0;"><strong>SMS Support:</strong> Reply HELP to any message you receive from us</p>
+            </div>
+
+            <p style="margin-top: 20px;">For questions about a specific product, order, or fulfillment, please contact the brand directly using the information provided in your end-of-drop SMS.</p>
+        </section>
+
+        <footer>
+            <p>&copy; 2025 eStreamly. All rights reserved.</p>
+            <p style="margin-top: 8px;">Powered by <a href="https://estreamly.com">eStreamly Live Commerce</a></p>
+        </footer>
+    </div>
+</body>
+</html>

@@ -456,16 +456,17 @@ function toggleProductInfo() {
 
 function updateTermsLink() {
     const termsLink = document.getElementById('terms-link');
+    const termsCompliance = document.querySelector('.terms-compliance');
+    
     if (!termsLink) return;
 
-    const termsUrl = config.termsUrl || '';
-    if (termsUrl) {
-        termsLink.href = termsUrl;
-    } else {
-        // Hide the compliance text if no terms URL is set
-        const complianceText = document.querySelector('.terms-compliance');
-        if (complianceText) complianceText.style.display = 'none';
+    // Always show T&C compliance text
+    if (termsCompliance) {
+        termsCompliance.style.display = 'block';
     }
+    
+    // Use client termsUrl if set, otherwise default to /terms.html
+    termsLink.href = config.termsUrl || '/terms.html';
 }
 
 document.addEventListener('DOMContentLoaded', init);
