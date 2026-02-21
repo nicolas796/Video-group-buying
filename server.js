@@ -274,7 +274,7 @@ async function sendUnlockSMS(referrerPhone, referralCode, campaignId) {
 
 const rateLimitMap = new Map();
 const loginAttemptsMap = new Map();
-const LOCALHOST_IPS = ['127.0.0.1', '::1', '::ffff:127.0.0.1'];
+const LOCALHOST_IPS = ['127.0.0.1', '::1', '::ffff:127.0.0.1', '::ffff:192.168.224.1'];
 
 // Login rate limiting: 5 attempts per 15 minutes
 const LOGIN_RATE_LIMIT_MAX = 5;
