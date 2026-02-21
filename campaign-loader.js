@@ -5,7 +5,9 @@
 
 const CampaignLoader = (function() {
     let campaignsCache = null;
+    let cacheTimestamp = 0;
     let currentCampaign = null;
+    const CACHE_TTL = 30000; // 30 seconds cache TTL
     
     function generateCampaignId() {
         const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
@@ -26,16 +28,26 @@ const CampaignLoader = (function() {
     }
     
     async function loadAllCampaigns() {
-        // Clear cache to ensure fresh data on each load (fixes stale cache issues)
-        campaignsCache = null;
+        const now = Date.now();
+        
+        // Use cache if it's still fresh (within TTL)
+        if (campaignsCache && (now - cacheTimestamp) < CACHE_TTL) {
+            return campaignsCache;
+        }
+        
         try {
-            const response = await fetch(`/data/campaigns.json?t=${Date.now()}`);
+            const response = await fetch(`/data/campaigns.json?t=${now}`);
             if (!response.ok) throw new Error(`Failed to load: ${response.status}`);
             campaignsCache = await response.json();
+            cacheTimestamp = now;
             return campaignsCache;
         } catch (error) {
             console.error('CampaignLoader: Error loading campaigns:', error);
-            campaignsCache = null; // Clear cache on error
+            // Return stale cache as fallback instead of null
+            if (campaignsCache) {
+                console.log('CampaignLoader: Using stale cache as fallback');
+                return campaignsCache;
+            }
             return null;
         }
     }
