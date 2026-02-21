@@ -113,7 +113,7 @@ function recalculateDiscount() {
 function initPlayer() {
     if (!config.videoSource) return;
     loading.classList.add('active');
-    video.muted = true;
+    video.muted = false;
     video.autoplay = true;
     video.loop = true;
     
@@ -167,7 +167,11 @@ function renderProductInfo() {
     if (successName) successName.textContent = product.name || '';
     
     const detailsContent = document.getElementById('product-details-content');
-    if (detailsContent && product.description) detailsContent.innerHTML = product.description;
+    if (detailsContent && product.description) {
+        // Sanitize HTML to prevent XSS attacks
+        const cleanDescription = DOMPurify.sanitize(product.description);
+        detailsContent.innerHTML = cleanDescription;
+    }
     
     // Display discount percentage - recalculate based on current buyers, then display
     recalculateDiscount();
