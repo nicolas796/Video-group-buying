@@ -95,6 +95,7 @@
         </section>
         
         <form id="admin-form" style="display: none;">
+            <input type="hidden" name="csrfToken" id="admin-csrf-token">
             <!-- Stats Section - AT THE TOP -->
             <section class="form-section stats">
                 <h2>📊 Live Stats</h2>
@@ -525,6 +526,7 @@
         }
     </style>
 
+    <script src="csrf.js"></script>
     <script src="admin.js"></script>
 </body>
 </html>

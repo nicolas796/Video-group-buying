@@ -113,11 +113,33 @@ function recalculateDiscount() {
 function initPlayer() {
     if (!config.videoSource) return;
     loading.classList.add('active');
-    video.muted = false;
+    // Start muted for autoplay - browsers require this
+    video.muted = true;
     video.autoplay = true;
     video.loop = true;
     
-    const attemptPlay = () => { video.play().catch(e => console.log('Autoplay prevented:', e)); };
+    let hasUnmuted = false;
+    
+    // Unmute on first user interaction (browser requirement for sound)
+    const unmuteOnInteraction = () => {
+        if (!hasUnmuted && video) {
+            video.muted = false;
+            hasUnmuted = true;
+            // Remove listeners after first interaction
+            document.removeEventListener('click', unmuteOnInteraction);
+            document.removeEventListener('touchstart', unmuteOnInteraction);
+            document.removeEventListener('scroll', unmuteOnInteraction);
+        }
+    };
+    
+    // Wait for first user interaction to enable sound
+    document.addEventListener('click', unmuteOnInteraction, { once: true });
+    document.addEventListener('touchstart', unmuteOnInteraction, { once: true });
+    document.addEventListener('scroll', unmuteOnInteraction, { once: true });
+    
+    const attemptPlay = () => { 
+        video.play().catch(e => console.log('Autoplay prevented:', e)); 
+    };
     
     if (video.canPlayType('application/vnd.apple.mpegurl')) {
         video.src = config.videoSource;
@@ -189,6 +211,40 @@ function createDiscountBadge() {
     const priceTag = document.querySelector('.price-tag');
     if (priceTag) priceTag.appendChild(badge);
     return badge;
+}
+
+// 🎉 Confetti celebration for successful registration
+function triggerConfetti() {
+    if (typeof confetti === 'undefined') {
+        console.log('Confetti library not loaded');
+        return;
+    }
+    
+    const duration = 3000;
+    const animationEnd = Date.now() + duration;
+    const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 9999 };
+    
+    const randomInRange = (min, max) => Math.random() * (max - min) + min;
+    
+    const interval = setInterval(function() {
+        const timeLeft = animationEnd - Date.now();
+        
+        if (timeLeft <= 0) {
+            return clearInterval(interval);
+        }
+        
+        const particleCount = 50 * (timeLeft / duration);
+        
+        // Launch confetti from both sides
+        confetti(Object.assign({}, defaults, { 
+            particleCount, 
+            origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 } 
+        }));
+        confetti(Object.assign({}, defaults, { 
+            particleCount, 
+            origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 } 
+        }));
+    }, 250);
 }
 
 function renderProgressBar() {
@@ -311,22 +367,50 @@ function updateCountdownDisplay(days, hours, minutes, seconds) {
     if (secondsEl) secondsEl.textContent = pad(seconds);
 }
 
+// Helper to get CSRF token for API calls
+async function getCsrfToken() {
+    try {
+        const response = await fetch('/api/csrf-token', { credentials: 'same-origin' });
+        if (response.ok) {
+            const data = await response.json();
+            return data.token;
+        }
+    } catch (e) {
+        console.error('Failed to get CSRF token:', e);
+    }
+    return null;
+}
+
 joinForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     
-    const phone = document.getElementById('phone').value;
+    let phone = document.getElementById('phone').value.trim();
     const email = document.getElementById('email').value;
     
-    if (phone.replace(/\D/g, '').length < 10) { alert('Please enter a valid phone number'); return; }
+    // Auto-format phone: if 10 digits without country code, prepend +1 (US)
+    const digitsOnly = phone.replace(/\D/g, '');
+    if (digitsOnly.length === 10 && !phone.startsWith('+') && !phone.startsWith('1')) {
+        phone = '+1' + digitsOnly;
+    } else if (digitsOnly.length === 11 && digitsOnly.startsWith('1') && !phone.startsWith('+')) {
+        phone = '+' + digitsOnly;
+    }
+    
+    if (digitsOnly.length < 10) { alert('Please enter a valid phone number (at least 10 digits)'); return; }
     if (!email.includes('@')) { alert('Please enter a valid email'); return; }
     
     referredBy = getReferralFromUrl();
     
+    const csrfToken = await getCsrfToken();
+    
     try {
         const response = await fetch('/api/join', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ phone, email, referredBy, campaignId: currentCampaignId })
+            headers: { 
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': csrfToken || ''
+            },
+            credentials: 'same-origin',
+            body: JSON.stringify({ phone, email, referredBy, campaignId: currentCampaignId, csrfToken })
         });
         
         if (response.ok) {
@@ -334,6 +418,10 @@ joinForm.addEventListener('submit', async (e) => {
             userReferralCode = data.referralCode;
             landingView.classList.add('hidden');
             successView.classList.remove('hidden');
+            
+            // 🎉 Trigger confetti celebration
+            triggerConfetti();
+            
             await loadConfig();
             renderProgressBar();
             updateBuyerCount();

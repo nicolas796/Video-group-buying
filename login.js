@@ -48,12 +48,26 @@
         setLoading(true);
 
         try {
+            // Fetch CSRF token first
+            let csrfToken = null;
+            try {
+                const csrfResponse = await fetch('/api/csrf-token', { credentials: 'same-origin' });
+                if (csrfResponse.ok) {
+                    const csrfData = await csrfResponse.json();
+                    csrfToken = csrfData.token;
+                }
+            } catch (csrfError) {
+                console.warn('Failed to fetch CSRF token:', csrfError);
+            }
+
             const response = await fetch('/api/login', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'X-CSRF-Token': csrfToken || ''
                 },
-                body: JSON.stringify({ username, password })
+                credentials: 'same-origin',
+                body: JSON.stringify({ username, password, csrfToken })
             });
 
             const data = await response.json();

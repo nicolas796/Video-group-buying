@@ -24,6 +24,7 @@
                 <div class="join-box">
                     <h2>Join to unlock</h2>
                     <form id="join-form">
+                        <input type="hidden" name="csrfToken" id="join-csrf-token">
                         <div class="input-row">
                             <div class="input-group half">
                                 <input type="tel" id="phone" placeholder="Cellphone" required>
@@ -224,6 +225,8 @@
 </script>
 <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.5/dist/purify.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <script src="csrf.js"></script>
     <script src="campaign-loader.js"></script>
     <script src="app.js"></script>
 </body>

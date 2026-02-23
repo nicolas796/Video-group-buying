@@ -6,11 +6,31 @@ Mobile-optimized group buying landing page with live video, progress tracking, a
 
 ```bash
 cd group-buying
+cp .env.example .env # fill in secrets before running
 node server.js
 ```
 
 - **Drop page**: `http://localhost:8080`
 - **Admin panel**: `http://localhost:8080/admin.html`
+
+## Environment Variables & Secrets
+
+All sensitive configuration (Twilio credentials, admin overrides, HTTPS settings, etc.) should be supplied through environment variables instead of committing raw values into the repo.
+
+1. Copy `.env.example` to `.env` and populate it with your local/staging values.
+2. Load the variables before running the server (e.g., `export $(grep -v '^#' .env | xargs) && node server.js`).
+3. Keep `.env` out of Git — it is already ignored, but double-check with `git status` before committing.
+4. `data/config.json` may contain runtime values for Twilio credentials once you save them via the admin panel. Treat that file as sensitive data: never commit it after populating secrets. If you need a sanitized reference, create a `config.example.json` without real secrets.
+5. See `SECRETS.md` for the full secrets-management checklist (rotation, storage, incident response).
+
+## HTTPS Enforcement
+
+- When `NODE_ENV=production`, the server automatically redirects HTTP traffic to HTTPS and sets an HSTS header (`Strict-Transport-Security: max-age=31536000; includeSubDomains`).
+- Override behavior with env vars:
+  - `FORCE_HTTPS=true|false` — force enable/disable redirection regardless of `NODE_ENV`.
+  - `HTTPS_EXEMPT_HOSTS=localhost,127.0.0.1` — comma-separated list of hosts/IPs that should not be redirected (localhost + loopback are exempt by default).
+- Requests served over HTTPS automatically receive HSTS unless the host is exempt.
+- Local development stays on HTTP because requests from localhost/127.0.0.1 are automatically skipped.
 
 ## Admin Panel
 

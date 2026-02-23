@@ -3,13 +3,54 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const https = require('https');
+const Ajv = require('ajv');
+const addFormats = require('ajv-formats');
 
 const PORT = process.env.PORT || 8080;
+const NODE_ENV = process.env.NODE_ENV || 'development';
+const CSP_POLICY = [
+    "default-src 'self'",
+    "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net",
+    "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net",
+    "img-src 'self' data: https:",
+    "media-src 'self' https: blob:",
+    "font-src 'self' data:",
+    "connect-src 'self'",
+    "form-action 'self'",
+    "base-uri 'self'",
+    "frame-ancestors 'none'",
+    "object-src 'none'",
+    "worker-src 'self' blob:"
+].join('; ');
 const DATA_DIR = path.join(__dirname, 'data');
 const DEFAULT_REFERRALS_NEEDED = 2;
 const MAX_REFERRALS = 10;
 const RATE_LIMIT_WINDOW = 60000;
 const RATE_LIMIT_MAX = 10;
+const ALLOWED_COUNTRY_CODES = (process.env.ALLOWED_COUNTRY_CODES || '1')
+    .split(',')
+    .map(code => code.trim())
+    .filter(Boolean);
+const SORTED_COUNTRY_CODES = [...ALLOWED_COUNTRY_CODES].sort((a, b) => b.length - a.length);
+const PHONE_E164_REGEX = /^\+?[1-9]\d{9,14}$/;
+const EMAIL_REGEX = /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i;
+const CAMPAIGN_ID_REGEX = /^[A-Za-z0-9_-]{6,32}$/;
+const REFERRAL_CODE_REGEX = /^[A-F0-9]{8}$/i;
+const HSTS_HEADER_VALUE = 'max-age=31536000; includeSubDomains';
+const FORCE_HTTPS = (() => {
+    const flag = (process.env.FORCE_HTTPS || '').trim().toLowerCase();
+    if (flag === 'true') return true;
+    if (flag === 'false') return false;
+    return NODE_ENV === 'production';
+})();
+const HTTPS_EXEMPT_HOSTS = (process.env.HTTPS_EXEMPT_HOSTS || 'localhost,127.0.0.1')
+    .split(',')
+    .map(host => host.trim().toLowerCase())
+    .filter(Boolean);
+const SESSION_COOKIE_NAME = 'gb_session';
+const SESSION_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+const CSRF_HEADER_NAME = 'x-csrf-token';
+const sessionStore = new Map();
 
 if (!fs.existsSync(DATA_DIR)) {
     fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -36,6 +77,183 @@ const DEFAULT_CONFIG = {
     domain: 'https://your-domain.com'
 };
 
+const ajv = new Ajv({ allErrors: true, strict: false, allowUnionTypes: true });
+addFormats(ajv);
+
+const priceTierSchema = {
+    type: 'object',
+    required: ['buyers', 'price'],
+    properties: {
+        buyers: { type: 'integer', minimum: 0 },
+        price: { type: 'number', minimum: 0 },
+        couponCode: { type: 'string', minLength: 0, maxLength: 64 }
+    },
+    additionalProperties: false
+};
+
+const twilioSchema = {
+    type: 'object',
+    required: ['enabled', 'accountSid', 'authToken', 'phoneNumber', 'domain'],
+    properties: {
+        enabled: { type: 'boolean' },
+        accountSid: { type: 'string', minLength: 0 },
+        authToken: { type: 'string', minLength: 0 },
+        phoneNumber: { type: 'string', minLength: 0 },
+        domain: { type: 'string', minLength: 0 }
+    },
+    additionalProperties: false
+};
+
+const pricingSchema = {
+    type: 'object',
+    required: ['initialPrice', 'initialBuyers', 'tiers'],
+    properties: {
+        initialPrice: { type: 'number', minimum: 0 },
+        initialBuyers: { type: 'integer', minimum: 0 },
+        checkoutUrl: { type: 'string', minLength: 0 },
+        tiers: {
+            type: 'array',
+            minItems: 1,
+            items: priceTierSchema
+        }
+    },
+    additionalProperties: true
+};
+
+const campaignSchema = {
+    type: 'object',
+    required: ['id', 'productName', 'productImage', 'productDescription', 'videoUrl', 'twilio', 'pricing', 'referralsNeeded', 'countdownEnd', 'description', 'price', 'originalPrice', 'imageUrl', 'sharesRequired', 'discountPercentage', 'merchantName', 'merchantLogo', 'initialBuyers', 'priceTiers'],
+    properties: {
+        id: { type: 'string', pattern: CAMPAIGN_ID_REGEX.source },
+        productName: { type: 'string', minLength: 1 },
+        productImage: { type: 'string', minLength: 1 },
+        productDescription: { type: 'string', minLength: 1 },
+        videoUrl: { type: 'string', minLength: 1 },
+        twilio: twilioSchema,
+        pricing: pricingSchema,
+        referralsNeeded: { type: 'integer', minimum: 1, maximum: MAX_REFERRALS },
+        countdownEnd: { type: 'string', format: 'date-time' },
+        description: { type: 'string', minLength: 1 },
+        price: { type: 'number', minimum: 0 },
+        originalPrice: { type: 'number', minimum: 0 },
+        imageUrl: { type: 'string', minLength: 0 },
+        sharesRequired: { type: 'integer', minimum: 1, maximum: MAX_REFERRALS },
+        discountPercentage: { type: 'number', minimum: 0, maximum: 100 },
+        merchantName: { type: 'string', minLength: 0 },
+        merchantLogo: { type: 'string', minLength: 0 },
+        initialBuyers: { type: 'integer', minimum: 0 },
+        priceTiers: {
+            type: 'array',
+            minItems: 1,
+            items: priceTierSchema
+        },
+        termsUrl: { type: 'string', minLength: 0 }
+    },
+    additionalProperties: true
+};
+
+const validateCampaignSchema = ajv.compile(campaignSchema);
+
+class CampaignValidationError extends Error {
+    constructor(message, details = [], statusCode = 400) {
+        super(message);
+        this.name = 'CampaignValidationError';
+        this.statusCode = statusCode;
+        this.details = details;
+    }
+}
+
+function describePath(instancePath = '', campaignId = null) {
+    if (!instancePath && !campaignId) return 'campaign';
+    const normalizedPath = instancePath ? instancePath.replace(/\//g, '.').replace(/^\./, '') : '';
+    if (campaignId) {
+        return normalizedPath ? `${campaignId}.${normalizedPath}` : campaignId;
+    }
+    return normalizedPath || 'campaign';
+}
+
+function formatValidationErrors(errors = [], campaignId = null) {
+    if (!errors.length) return [];
+    return errors.map(error => {
+        const location = describePath(error.instancePath || '', campaignId);
+        if (error.keyword === 'required' && error.params?.missingProperty) {
+            return `${location} is missing required property '${error.params.missingProperty}'`;
+        }
+        if (error.keyword === 'type' && error.params?.type) {
+            return `${location} must be of type ${error.params.type}`;
+        }
+        if (error.keyword === 'pattern') {
+            return `${location} ${error.message}`;
+        }
+        if ((error.keyword === 'minimum' || error.keyword === 'maximum') && typeof error.params?.limit !== 'undefined') {
+            return `${location} ${error.message}`;
+        }
+        if (error.keyword === 'additionalProperties' && error.params?.additionalProperty) {
+            return `${location} has unsupported property '${error.params.additionalProperty}'`;
+        }
+        return `${location} ${error.message}`;
+    });
+}
+
+function ensureCampaignValid(campaign, { context = 'campaign', statusCode = 400 } = {}) {
+    const candidate = { ...campaign };
+    if (candidate.id === undefined || candidate.id === null) {
+        throw new CampaignValidationError(`Invalid ${context} data`, ['campaign.id is required'], statusCode);
+    }
+    candidate.id = typeof candidate.id === 'string' ? candidate.id : String(candidate.id);
+    const isValid = validateCampaignSchema(candidate);
+    if (!isValid) {
+        const details = formatValidationErrors(validateCampaignSchema.errors, candidate.id || null);
+        throw new CampaignValidationError(`Invalid ${context} data`, details, statusCode);
+    }
+    return candidate;
+}
+
+function validateCampaignCollection(rawCampaigns = {}, { throwOnError = false } = {}) {
+    const campaigns = {};
+    const errors = [];
+
+    for (const [campaignId, data] of Object.entries(rawCampaigns)) {
+        if (!data || typeof data !== 'object') {
+            errors.push({ campaignId, errors: [`${campaignId} is not a valid campaign object`] });
+            continue;
+        }
+        const candidate = { ...data };
+        if (candidate.id === undefined || candidate.id === null) {
+            errors.push({ campaignId, errors: ['campaign.id is missing'] });
+            continue;
+        }
+        candidate.id = typeof candidate.id === 'string' ? candidate.id : String(candidate.id);
+
+        if (candidate.id !== campaignId) {
+            errors.push({ campaignId, errors: [`campaign.id (${candidate.id}) must match key ${campaignId}`] });
+            continue;
+        }
+
+        const isValid = validateCampaignSchema(candidate);
+        if (!isValid) {
+            errors.push({ campaignId, errors: formatValidationErrors(validateCampaignSchema.errors, campaignId) });
+            continue;
+        }
+
+        campaigns[campaignId] = candidate;
+    }
+
+    if (errors.length) {
+        const message = `Invalid campaign data found in ${PATHS.campaigns}`;
+        if (throwOnError) {
+            throw new CampaignValidationError(message, errors, 500);
+        }
+        console.error(`[Campaign Validation] ${message}`);
+        errors.forEach(entry => {
+            console.error(`  - ${entry.campaignId}: ${entry.errors.join('; ')}`);
+        });
+    }
+
+    return { campaigns, errors };
+}
+
+
 function initializeFiles() {
     Object.entries(PATHS).forEach(([key, filePath]) => {
         if (!fs.existsSync(filePath)) {
@@ -45,6 +263,92 @@ function initializeFiles() {
     });
 }
 initializeFiles();
+
+function parseCookies(header = '') {
+    return (header || '')
+        .split(';')
+        .map(part => part.trim())
+        .filter(Boolean)
+        .reduce((acc, part) => {
+            const [key, ...rest] = part.split('=');
+            if (!key) return acc;
+            acc[key.trim()] = decodeURIComponent((rest.join('=') || '').trim());
+            return acc;
+        }, {});
+}
+
+function appendSetCookieHeader(res, value) {
+    const existing = res.getHeader('Set-Cookie');
+    if (!existing) {
+        res.setHeader('Set-Cookie', value);
+    } else if (Array.isArray(existing)) {
+        res.setHeader('Set-Cookie', [...existing, value]);
+    } else {
+        res.setHeader('Set-Cookie', [existing, value]);
+    }
+}
+
+function setSessionCookie(res, sessionId, isSecure) {
+    const attributes = [
+        `${SESSION_COOKIE_NAME}=${sessionId}`,
+        'HttpOnly',
+        'Path=/',
+        `Max-Age=${Math.floor(SESSION_TTL_MS / 1000)}`,
+        'SameSite=Strict'
+    ];
+    if (isSecure) {
+        attributes.push('Secure');
+    }
+    appendSetCookieHeader(res, attributes.join('; '));
+}
+
+function createSessionRecord() {
+    return {
+        id: crypto.randomBytes(18).toString('hex'),
+        csrfToken: crypto.randomBytes(32).toString('hex'),
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+    };
+}
+
+function getOrCreateSession(req, res, isSecure) {
+    const cookies = parseCookies(req.headers.cookie || '');
+    const existingId = cookies[SESSION_COOKIE_NAME];
+    if (existingId) {
+        const existingSession = sessionStore.get(existingId);
+        if (existingSession) {
+            const expired = (Date.now() - existingSession.createdAt) > SESSION_TTL_MS;
+            if (!expired) {
+                existingSession.updatedAt = Date.now();
+                return existingSession;
+            }
+            sessionStore.delete(existingId);
+        }
+    }
+
+    const newSession = createSessionRecord();
+    sessionStore.set(newSession.id, newSession);
+    setSessionCookie(res, newSession.id, isSecure);
+    return newSession;
+}
+
+function resolveCsrfTokenCandidate(req, bodyToken) {
+    const headerToken = (req.headers[CSRF_HEADER_NAME] || '').trim();
+    if (headerToken) return headerToken;
+    if (typeof bodyToken === 'string' && bodyToken.trim()) return bodyToken.trim();
+    return null;
+}
+
+function enforceCsrf(req, res, bodyToken = '') {
+    const candidate = resolveCsrfTokenCandidate(req, bodyToken);
+    if (!req.session || !candidate || candidate !== req.session.csrfToken) {
+        setNoCacheHeaders(res);
+        res.writeHead(403, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Invalid or missing CSRF token' }));
+        return false;
+    }
+    return true;
+}
 
 // Stats tracking functions
 function getCampaignStats(campaignId) {
@@ -69,9 +373,50 @@ function writeJson(filePath, data) {
     try { fs.writeFileSync(filePath, JSON.stringify(data, null, 2)); return true; } catch (e) { return false; }
 }
 
-function normalizePhone(phone) { return String(phone).replace(/\D/g, ''); }
-function isValidPhone(phone) { return normalizePhone(phone).length >= 10; }
-function isValidEmail(email) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email); }
+function sanitizePhoneInput(phone) {
+    if (phone === undefined || phone === null) return '';
+    const value = String(phone).trim();
+    if (!value) return '';
+    const hasPlus = value.startsWith('+');
+    const digits = value.replace(/\D/g, '');
+    return hasPlus ? `+${digits}` : digits;
+}
+function extractCountryCode(digits) {
+    for (const code of SORTED_COUNTRY_CODES) {
+        if (digits.startsWith(code)) return code;
+    }
+    return null;
+}
+function formatPhoneE164(phone) {
+    const sanitized = sanitizePhoneInput(phone);
+    if (!sanitized) return '';
+    return sanitized.startsWith('+') ? sanitized : `+${sanitized}`;
+}
+function normalizePhone(phone) {
+    return sanitizePhoneInput(phone).replace(/^\+/, '');
+}
+function isValidPhone(phone) {
+    if (!phone) return false;
+    const sanitized = sanitizePhoneInput(phone);
+    if (!PHONE_E164_REGEX.test(sanitized)) return false;
+    const digits = sanitized.startsWith('+') ? sanitized.slice(1) : sanitized;
+    const countryCode = extractCountryCode(digits);
+    if (!countryCode) return false;
+    const nationalNumber = digits.slice(countryCode.length);
+    return nationalNumber.length >= 7 && nationalNumber.length <= 12;
+}
+function isValidEmail(email) {
+    return typeof email === 'string' && EMAIL_REGEX.test(email.trim());
+}
+function isValidCampaignId(id) {
+    return typeof id === 'string' && CAMPAIGN_ID_REGEX.test(id);
+}
+function isValidReferralCode(code) {
+    return typeof code === 'string' && REFERRAL_CODE_REGEX.test(code.trim());
+}
+function normalizeReferralCode(code) {
+    return typeof code === 'string' ? code.trim().toUpperCase() : null;
+}
 function generateReferralCode() {
     const participants = getParticipants();
     let code;
@@ -92,12 +437,20 @@ function generateCampaignId() {
     return result;
 }
 
-function getCampaigns() { return readJson(PATHS.campaigns) || {}; }
-function getCampaign(campaignId) { return getCampaigns()[campaignId] || null; }
+function getCampaigns(options = {}) {
+    const data = readJson(PATHS.campaigns) || {};
+    const { campaigns } = validateCampaignCollection(data, { throwOnError: options.strict !== false });
+    return campaigns;
+}
+function getCampaign(campaignId) {
+    const campaigns = getCampaigns();
+    return campaigns[campaignId] || null;
+}
 function saveCampaign(campaignId, campaignData) {
     const campaigns = getCampaigns();
-    campaigns[campaignId] = campaignData;
-    return writeJson(PATHS.campaigns, campaigns);
+    const nextCampaign = ensureCampaignValid({ ...campaignData, id: campaignId }, { context: `campaign ${campaignId}` });
+    campaigns[campaignId] = nextCampaign;
+    return writeJson(PATHS.campaigns, campaigns) ? nextCampaign : null;
 }
 function deleteCampaign(campaignId) {
     const campaigns = getCampaigns();
@@ -143,23 +496,27 @@ function getParticipants(campaignId = null) {
 }
 
 function getReferralCount(referralCode, campaignId = null) {
-    return getParticipants(campaignId).filter(p => p.referredBy === referralCode).length;
+    const normalizedCode = normalizeReferralCode(referralCode);
+    if (!normalizedCode) return 0;
+    return getParticipants(campaignId).filter(p => p.referredBy === normalizedCode).length;
 }
 
 function hasUnlockedBestPrice(referralCode, campaignId = null) {
-    if (!referralCode) return false;
+    const normalizedCode = normalizeReferralCode(referralCode);
+    if (!normalizedCode) return false;
     const campaign = getCampaign(campaignId);
     const needed = Math.min(campaign?.referralsNeeded || campaign?.sharesRequired || DEFAULT_REFERRALS_NEEDED, MAX_REFERRALS);
-    return getReferralCount(referralCode, campaignId) >= needed;
+    return getReferralCount(normalizedCode, campaignId) >= needed;
 }
 
 function getReferralStatus(referralCode, campaignId = null) {
+    const normalizedCode = normalizeReferralCode(referralCode);
     const campaign = getCampaign(campaignId);
-    const count = getReferralCount(referralCode, campaignId);
+    const count = getReferralCount(normalizedCode, campaignId);
     const needed = Math.min(campaign?.referralsNeeded || campaign?.sharesRequired || DEFAULT_REFERRALS_NEEDED, MAX_REFERRALS);
     const tiers = campaign?.pricing?.tiers || campaign?.priceTiers || [];
     const bestPrice = tiers.length > 0 ? Math.min(...tiers.map(t => t.price)) : 20;
-    return { referralCode, referralCount: count, unlockedBestPrice: hasUnlockedBestPrice(referralCode, campaignId), bestPrice, referralsNeeded: needed, referralsRemaining: Math.max(0, needed - count) };
+    return { referralCode: normalizedCode, referralCount: count, unlockedBestPrice: hasUnlockedBestPrice(normalizedCode, campaignId), bestPrice, referralsNeeded: needed, referralsRemaining: Math.max(0, needed - count) };
 }
 
 function isOptedOut(phone) { return (readJson(PATHS.optouts) || []).includes(normalizePhone(phone)); }
@@ -219,7 +576,14 @@ function findParticipantByPhone(phone, campaignId = null) {
 
 function addParticipant(phone, email, referredBy, campaignId = null) {
     const participants = getParticipants();
-    const newParticipant = { phone, email, referralCode: generateReferralCode(), referredBy: referredBy || null, campaignId: campaignId || null, joinedAt: new Date().toISOString() };
+    const newParticipant = {
+        phone: formatPhoneE164(phone) || phone,
+        email: typeof email === 'string' ? email.trim() : email,
+        referralCode: generateReferralCode(),
+        referredBy: normalizeReferralCode(referredBy),
+        campaignId: isValidCampaignId(campaignId) ? campaignId : null,
+        joinedAt: new Date().toISOString()
+    };
     participants.push(newParticipant);
     return writeJson(PATHS.participants, participants) ? newParticipant : null;
 }
@@ -275,6 +639,39 @@ async function sendUnlockSMS(referrerPhone, referralCode, campaignId) {
 const rateLimitMap = new Map();
 const loginAttemptsMap = new Map();
 const LOCALHOST_IPS = ['127.0.0.1', '::1', '::ffff:127.0.0.1', '::ffff:192.168.224.1'];
+
+function normalizeHost(hostHeader = '') {
+    if (!hostHeader) return '';
+    return hostHeader.split(':')[0].trim().toLowerCase();
+}
+
+function isExemptHost(hostHeader) {
+    const normalized = normalizeHost(hostHeader);
+    return normalized && HTTPS_EXEMPT_HOSTS.includes(normalized);
+}
+
+function shouldSkipHttps(hostHeader, ipAddress) {
+    return isLocalhost(ipAddress) || isExemptHost(hostHeader);
+}
+
+function getForwardedProto(req) {
+    const proto = req.headers['x-forwarded-proto'];
+    if (!proto) return null;
+    return proto.split(',').map(value => value.trim().toLowerCase());
+}
+
+function isSecureRequest(req) {
+    if (req.socket && req.socket.encrypted) return true;
+    const forwardedProto = getForwardedProto(req);
+    if (forwardedProto) {
+        return forwardedProto.includes('https');
+    }
+    return false;
+}
+
+function getHostForRequest(req) {
+    return req.headers['x-forwarded-host'] || req.headers.host || '';
+}
 
 // Login rate limiting: 5 attempts per 15 minutes
 const LOGIN_RATE_LIMIT_MAX = 5;
@@ -429,7 +826,13 @@ async function sendEndOfDropSMS(participant, campaign, finalPrice, couponCode) {
  * Runs every 15 minutes
  */
 async function scheduleReminderSMS() {
-    const campaigns = getCampaigns();
+    let campaigns;
+    try {
+        campaigns = getCampaigns();
+    } catch (error) {
+        logCampaignValidationError(error, 'Reminder SMS');
+        return;
+    }
     const now = Date.now();
 
     for (const [campaignId, campaign] of Object.entries(campaigns)) {
@@ -587,9 +990,65 @@ function setNoCacheHeaders(res) {
     res.setHeader('Expires', '0');
 }
 
+function setSecurityHeaders(res) {
+    res.setHeader('Content-Security-Policy', CSP_POLICY);
+}
+
+function sendJsonError(res, error, fallbackStatus = 500) {
+    const statusCode = Number(error?.statusCode) || fallbackStatus;
+    const payload = { error: error?.message || 'Internal server error' };
+    if (error?.details && error.details.length) payload.details = error.details;
+    if (error?.code) payload.code = error.code;
+    setNoCacheHeaders(res);
+    res.writeHead(statusCode, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify(payload));
+}
+
+function logCampaignValidationError(error, prefix = 'Campaign Validation') {
+    if (!error) return;
+    console.error(`[${prefix}] ${error.message}`);
+    if (Array.isArray(error.details)) {
+        error.details.forEach(detail => {
+            if (typeof detail === 'string') {
+                console.error(`  - ${detail}`);
+                return;
+            }
+            if (detail?.campaignId) {
+                const summary = Array.isArray(detail.errors) ? detail.errors.join('; ') : detail.errors;
+                console.error(`  - ${detail.campaignId}: ${summary}`);
+            }
+        });
+    }
+}
+
 const server = http.createServer((req, res) => {
-    const clientIP = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+    const clientIP = ((req.headers['x-forwarded-for'] || req.socket.remoteAddress || '')).split(',')[0].trim();
     console.log(`[${new Date().toISOString()}] ${req.method} ${req.url} - ${clientIP}`);
+
+    const requestHost = getHostForRequest(req);
+    const enforcingHttps = FORCE_HTTPS && !shouldSkipHttps(requestHost, clientIP);
+    const requestIsSecure = isSecureRequest(req);
+
+    if (enforcingHttps) {
+        if (!requestIsSecure) {
+            const redirectHost = requestHost || req.headers.host;
+            if (redirectHost) {
+                const location = `https://${redirectHost}${req.url}`;
+                res.writeHead(301, { Location: location, 'Content-Type': 'text/plain' });
+                return res.end('Redirecting to HTTPS');
+            } else {
+                res.writeHead(400, { 'Content-Type': 'text/plain' });
+                return res.end('HTTPS required');
+            }
+        } else {
+            res.setHeader('Strict-Transport-Security', HSTS_HEADER_VALUE);
+        }
+    }
+
+    const session = getOrCreateSession(req, res, requestIsSecure);
+    req.session = session;
+
+    setSecurityHeaders(res);
     
     if (req.url.startsWith('/api/')) {
         const rateLimit = checkRateLimit(clientIP);
@@ -602,10 +1061,16 @@ const server = http.createServer((req, res) => {
     
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-CSRF-Token');
     if (req.method === 'OPTIONS') { res.writeHead(200); return res.end(); }
     
     const pathname = new URL(req.url, `http://${req.headers.host}`).pathname;
+    
+    if (pathname === '/api/csrf-token' && req.method === 'GET') {
+        setNoCacheHeaders(res);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({ token: req.session?.csrfToken || null }));
+    }
     
     // API Routes
     
@@ -616,7 +1081,8 @@ const server = http.createServer((req, res) => {
         req.on('end', () => {
             try {
                 const data = JSON.parse(body);
-                const { username, password } = data;
+                const { username, password, csrfToken } = data || {};
+                if (!enforceCsrf(req, res, csrfToken)) return;
                 
                 // Check login rate limit
                 const rateLimit = checkLoginRateLimit(clientIP);
@@ -653,16 +1119,26 @@ const server = http.createServer((req, res) => {
     }
     
     if (pathname === '/api/campaigns' && req.method === 'GET') {
-        const campaigns = getCampaigns();
-        const list = Object.entries(campaigns).map(([id, data]) => ({ id, name: data.productName, merchant: data.merchantName, price: data.pricing?.initialPrice || data.originalPrice }));
-        setNoCacheHeaders(res);
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        return res.end(JSON.stringify(list));
+        try {
+            const campaigns = getCampaigns();
+            const list = Object.entries(campaigns).map(([id, data]) => ({ id, name: data.productName, merchant: data.merchantName, price: data.pricing?.initialPrice || data.originalPrice }));
+            setNoCacheHeaders(res);
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            return res.end(JSON.stringify(list));
+        } catch (error) {
+            return sendJsonError(res, error);
+        }
     }
     
     if (pathname.startsWith('/api/campaign/') && req.method === 'GET' && pathname.split('/').length === 4) {
         const campaignId = pathname.split('/')[3];
-        const campaign = getCampaign(campaignId);
+        if (!isValidCampaignId(campaignId)) { setNoCacheHeaders(res); res.writeHead(400); return res.end(JSON.stringify({ error: 'Invalid campaign ID format' })); }
+        let campaign;
+        try {
+            campaign = getCampaign(campaignId);
+        } catch (error) {
+            return sendJsonError(res, error);
+        }
         if (!campaign) { setNoCacheHeaders(res); res.writeHead(404); return res.end(JSON.stringify({ error: 'Campaign not found' })); }
         setNoCacheHeaders(res);
         res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -671,26 +1147,56 @@ const server = http.createServer((req, res) => {
     
     if (pathname.startsWith('/api/campaign/') && req.method === 'PUT' && pathname.split('/').length === 4) {
         const campaignId = pathname.split('/')[3];
+        if (!isValidCampaignId(campaignId)) { setNoCacheHeaders(res); res.writeHead(400); return res.end(JSON.stringify({ error: 'Invalid campaign ID format' })); }
         let body = '';
         req.on('data', chunk => body += chunk);
         req.on('end', () => {
+            let data;
             try {
-                const data = JSON.parse(body);
-                const campaigns = getCampaigns();
-                if (!campaigns[campaignId]) { setNoCacheHeaders(res); res.writeHead(404); return res.end(JSON.stringify({ error: 'Campaign not found' })); }
-                const updated = { ...campaigns[campaignId], ...data, id: campaignId };
-                if (!saveCampaign(campaignId, updated)) { setNoCacheHeaders(res); res.writeHead(500); return res.end(JSON.stringify({ error: 'Failed to save' })); }
+                data = JSON.parse(body);
+            } catch (parseError) {
                 setNoCacheHeaders(res);
-                res.writeHead(200, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ success: true, campaignId, campaign: updated }));
-            } catch (e) { setNoCacheHeaders(res); res.writeHead(400); res.end(JSON.stringify({ error: 'Invalid data' })); }
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                return res.end(JSON.stringify({ error: 'Invalid data' }));
+            }
+
+            if (!enforceCsrf(req, res, data?.csrfToken)) return;
+            delete data.csrfToken;
+
+            let campaigns;
+            try {
+                campaigns = getCampaigns();
+            } catch (error) {
+                return sendJsonError(res, error);
+            }
+
+            if (!campaigns[campaignId]) { setNoCacheHeaders(res); res.writeHead(404); return res.end(JSON.stringify({ error: 'Campaign not found' })); }
+            const updated = { ...campaigns[campaignId], ...data, id: campaignId };
+
+            let persistedCampaign;
+            try {
+                persistedCampaign = saveCampaign(campaignId, updated);
+            } catch (error) {
+                return sendJsonError(res, error);
+            }
+            if (!persistedCampaign) { setNoCacheHeaders(res); res.writeHead(500); return res.end(JSON.stringify({ error: 'Failed to save' })); }
+
+            setNoCacheHeaders(res);
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: true, campaignId, campaign: persistedCampaign }));
         });
         return;
     }
     
     if (pathname.startsWith('/api/campaign/') && req.method === 'DELETE' && pathname.split('/').length === 4) {
         const campaignId = pathname.split('/')[3];
-        if (!deleteCampaign(campaignId)) { setNoCacheHeaders(res); res.writeHead(404); return res.end(JSON.stringify({ error: 'Campaign not found' })); }
+        if (!isValidCampaignId(campaignId)) { setNoCacheHeaders(res); res.writeHead(400); return res.end(JSON.stringify({ error: 'Invalid campaign ID format' })); }
+        if (!enforceCsrf(req, res)) return;
+        try {
+            if (!deleteCampaign(campaignId)) { setNoCacheHeaders(res); res.writeHead(404); return res.end(JSON.stringify({ error: 'Campaign not found' })); }
+        } catch (error) {
+            return sendJsonError(res, error);
+        }
         setNoCacheHeaders(res);
         res.writeHead(200, { 'Content-Type': 'application/json' });
         return res.end(JSON.stringify({ success: true }));
@@ -698,7 +1204,13 @@ const server = http.createServer((req, res) => {
     
     if (pathname.startsWith('/api/campaign/') && pathname.endsWith('/config') && req.method === 'GET') {
         const campaignId = pathname.split('/')[3];
-        const config = getCampaignConfig(campaignId);
+        if (!isValidCampaignId(campaignId)) { setNoCacheHeaders(res); res.writeHead(400); return res.end(JSON.stringify({ error: 'Invalid campaign ID format' })); }
+        let config;
+        try {
+            config = getCampaignConfig(campaignId);
+        } catch (error) {
+            return sendJsonError(res, error);
+        }
         if (!config) { setNoCacheHeaders(res); res.writeHead(404); return res.end(JSON.stringify({ error: 'Campaign not found' })); }
         setNoCacheHeaders(res);
         res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -707,7 +1219,13 @@ const server = http.createServer((req, res) => {
     
     if (pathname.startsWith('/api/campaign/') && pathname.endsWith('/buyers') && req.method === 'GET') {
         const campaignId = pathname.split('/')[3];
-        const campaign = getCampaign(campaignId);
+        if (!isValidCampaignId(campaignId)) { setNoCacheHeaders(res); res.writeHead(400); return res.end(JSON.stringify({ error: 'Invalid campaign ID format' })); }
+        let campaign;
+        try {
+            campaign = getCampaign(campaignId);
+        } catch (error) {
+            return sendJsonError(res, error);
+        }
         if (!campaign) { setNoCacheHeaders(res); res.writeHead(404); return res.end(JSON.stringify({ error: 'Campaign not found' })); }
         const pricing = campaign.pricing || {};
         setNoCacheHeaders(res);
@@ -718,7 +1236,13 @@ const server = http.createServer((req, res) => {
     // Campaign stats endpoint (SMS sent count, etc.)
     if (pathname.startsWith('/api/campaign/') && pathname.endsWith('/stats') && req.method === 'GET') {
         const campaignId = pathname.split('/')[3];
-        const campaign = getCampaign(campaignId);
+        if (!isValidCampaignId(campaignId)) { setNoCacheHeaders(res); res.writeHead(400); return res.end(JSON.stringify({ error: 'Invalid campaign ID format' })); }
+        let campaign;
+        try {
+            campaign = getCampaign(campaignId);
+        } catch (error) {
+            return sendJsonError(res, error);
+        }
         if (!campaign) { setNoCacheHeaders(res); res.writeHead(404); return res.end(JSON.stringify({ error: 'Campaign not found' })); }
         const stats = getCampaignStats(campaignId);
         setNoCacheHeaders(res);
@@ -729,7 +1253,13 @@ const server = http.createServer((req, res) => {
     // Export campaign participants as CSV
     if (pathname.startsWith('/api/campaign/') && pathname.endsWith('/export') && req.method === 'GET') {
         const campaignId = pathname.split('/')[3];
-        const campaign = getCampaign(campaignId);
+        if (!isValidCampaignId(campaignId)) { setNoCacheHeaders(res); res.writeHead(400); return res.end(JSON.stringify({ error: 'Invalid campaign ID format' })); }
+        let campaign;
+        try {
+            campaign = getCampaign(campaignId);
+        } catch (error) {
+            return sendJsonError(res, error);
+        }
         if (!campaign) { setNoCacheHeaders(res); res.writeHead(404); return res.end(JSON.stringify({ error: 'Campaign not found' })); }
         
         // Get participants for this campaign
@@ -775,30 +1305,55 @@ const server = http.createServer((req, res) => {
         let body = '';
         req.on('data', chunk => body += chunk);
         req.on('end', () => {
+            let data;
             try {
-                const data = JSON.parse(body);
-                const campaignId = data.id || generateCampaignId();
-                const campaigns = getCampaigns();
-                if (campaigns[campaignId]) { setNoCacheHeaders(res); res.writeHead(409); return res.end(JSON.stringify({ error: 'Campaign ID already exists' })); }
-                const newCampaign = {
-                    id: campaignId,
-                    productName: data.productName || 'New Product',
-                    productImage: data.productImage || '',
-                    productDescription: data.productDescription || '',
-                    videoUrl: data.videoUrl || '',
-                    twilio: data.twilio || { enabled: false, accountSid: '', authToken: '', phoneNumber: '', domain: '' },
-                    pricing: data.pricing || { initialPrice: 80, initialBuyers: 100, checkoutUrl: '', tiers: [{buyers: 100, price: 40, couponCode: ''}, {buyers: 500, price: 30, couponCode: ''}, {buyers: 1000, price: 20, couponCode: ''}] },
-                    referralsNeeded: data.referralsNeeded || 2,
-                    countdownEnd: data.countdownEnd || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-                    description: data.productDescription || '', price: 20, originalPrice: 80, imageUrl: '', sharesRequired: data.referralsNeeded || 2,
-                    discountPercentage: 75, merchantName: '', merchantLogo: '', initialBuyers: 100,
-                    priceTiers: data.pricing?.tiers || [{buyers: 100, price: 40, couponCode: ''}, {buyers: 500, price: 30, couponCode: ''}, {buyers: 1000, price: 20, couponCode: ''}]
-                };
-                if (!saveCampaign(campaignId, newCampaign)) { setNoCacheHeaders(res); res.writeHead(500); return res.end(JSON.stringify({ error: 'Failed to save' })); }
+                data = JSON.parse(body);
+            } catch (parseError) {
                 setNoCacheHeaders(res);
-                res.writeHead(201, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ success: true, campaignId, campaign: newCampaign }));
-            } catch (e) { setNoCacheHeaders(res); res.writeHead(400); res.end(JSON.stringify({ error: 'Invalid data' })); }
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                return res.end(JSON.stringify({ error: 'Invalid data' }));
+            }
+
+            if (!enforceCsrf(req, res, data?.csrfToken)) return;
+            delete data.csrfToken;
+
+            let campaignId = data.id ? String(data.id) : generateCampaignId();
+            if (data.id && !isValidCampaignId(campaignId)) { setNoCacheHeaders(res); res.writeHead(400); return res.end(JSON.stringify({ error: 'Invalid campaign ID format' })); }
+
+            let campaigns;
+            try {
+                campaigns = getCampaigns();
+            } catch (error) {
+                return sendJsonError(res, error);
+            }
+
+            if (campaigns[campaignId]) { setNoCacheHeaders(res); res.writeHead(409); return res.end(JSON.stringify({ error: 'Campaign ID already exists' })); }
+            const newCampaign = {
+                id: campaignId,
+                productName: data.productName || 'New Product',
+                productImage: data.productImage || '',
+                productDescription: data.productDescription || '',
+                videoUrl: data.videoUrl || '',
+                twilio: data.twilio || { enabled: false, accountSid: '', authToken: '', phoneNumber: '', domain: '' },
+                pricing: data.pricing || { initialPrice: 80, initialBuyers: 100, checkoutUrl: '', tiers: [{buyers: 100, price: 40, couponCode: ''}, {buyers: 500, price: 30, couponCode: ''}, {buyers: 1000, price: 20, couponCode: ''}] },
+                referralsNeeded: data.referralsNeeded || 2,
+                countdownEnd: data.countdownEnd || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+                description: data.productDescription || '', price: 20, originalPrice: 80, imageUrl: '', sharesRequired: data.referralsNeeded || 2,
+                discountPercentage: 75, merchantName: '', merchantLogo: '', initialBuyers: 100,
+                priceTiers: data.pricing?.tiers || [{buyers: 100, price: 40, couponCode: ''}, {buyers: 500, price: 30, couponCode: ''}, {buyers: 1000, price: 20, couponCode: ''}]
+            };
+
+            let persistedCampaign;
+            try {
+                persistedCampaign = saveCampaign(campaignId, newCampaign);
+            } catch (error) {
+                return sendJsonError(res, error);
+            }
+            if (!persistedCampaign) { setNoCacheHeaders(res); res.writeHead(500); return res.end(JSON.stringify({ error: 'Failed to save' })); }
+
+            setNoCacheHeaders(res);
+            res.writeHead(201, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: true, campaignId, campaign: persistedCampaign }));
         });
         return;
     }
@@ -815,35 +1370,51 @@ const server = http.createServer((req, res) => {
         req.on('end', async () => {
             try {
                 const data = JSON.parse(body);
+                if (!enforceCsrf(req, res, data?.csrfToken)) return;
+                delete data.csrfToken;
                 if (!data.phone || !isValidPhone(data.phone)) { setNoCacheHeaders(res); res.writeHead(400); return res.end(JSON.stringify({ error: 'Valid phone required' })); }
                 if (!data.email || !isValidEmail(data.email)) { setNoCacheHeaders(res); res.writeHead(400); return res.end(JSON.stringify({ error: 'Valid email required' })); }
-                if (data.campaignId && !getCampaign(data.campaignId)) { setNoCacheHeaders(res); res.writeHead(404); return res.end(JSON.stringify({ error: 'Campaign not found' })); }
-                const existing = findParticipantByPhone(data.phone, data.campaignId);
+
+                const campaignId = data.campaignId ? String(data.campaignId) : null;
+                if (campaignId && !isValidCampaignId(campaignId)) { setNoCacheHeaders(res); res.writeHead(400); return res.end(JSON.stringify({ error: 'Invalid campaign ID format' })); }
+                let campaign = null;
+                if (campaignId) {
+                    try {
+                        campaign = getCampaign(campaignId);
+                    } catch (error) {
+                        return sendJsonError(res, error);
+                    }
+                    if (!campaign) { setNoCacheHeaders(res); res.writeHead(404); return res.end(JSON.stringify({ error: 'Campaign not found' })); }
+                }
+
+                const referralCode = data.referredBy ? data.referredBy.trim().toUpperCase() : null;
+                if (referralCode && !isValidReferralCode(referralCode)) { setNoCacheHeaders(res); res.writeHead(400); return res.end(JSON.stringify({ error: 'Invalid referral code' })); }
+
+                const existing = findParticipantByPhone(data.phone, campaignId);
                 if (existing) { setNoCacheHeaders(res); res.writeHead(409); return res.end(JSON.stringify({ error: 'Already joined', alreadyJoined: true, referralCode: existing.referralCode })); }
 
                 // Check if referrer was already unlocked BEFORE adding participant
                 let wasUnlocked = false;
-                if (data.referredBy) {
-                    wasUnlocked = hasUnlockedBestPrice(data.referredBy, data.campaignId);
+                if (referralCode) {
+                    wasUnlocked = hasUnlockedBestPrice(referralCode, campaignId);
                 }
 
-                const participant = addParticipant(data.phone, data.email, data.referredBy, data.campaignId);
+                const participant = addParticipant(data.phone, data.email, referralCode, campaignId);
                 if (!participant) { setNoCacheHeaders(res); res.writeHead(500); return res.end(JSON.stringify({ error: 'Failed to save' })); }
-                sendWelcomeSMS(data.phone, participant.referralCode, data.campaignId);
+                sendWelcomeSMS(participant.phone || data.phone, participant.referralCode, campaignId);
 
                 // Check if referrer just unlocked best price and send SMS if so
                 let referrerUnlocked = false;
-                if (data.referredBy) {
-                    const newCount = getReferralCount(data.referredBy, data.campaignId);
-                    const campaign = getCampaign(data.campaignId);
+                if (referralCode) {
+                    const newCount = getReferralCount(referralCode, campaignId);
                     const needed = Math.min(campaign?.referralsNeeded || campaign?.sharesRequired || DEFAULT_REFERRALS_NEEDED, MAX_REFERRALS);
                     referrerUnlocked = newCount >= needed;
 
                     // If just unlocked now (wasn't unlocked before), send unlock SMS
                     if (referrerUnlocked && !wasUnlocked) {
-                        const referrer = getParticipants(data.campaignId).find(p => p.referralCode === data.referredBy);
+                        const referrer = getParticipants(campaignId).find(p => p.referralCode === referralCode);
                         if (referrer) {
-                            sendUnlockSMS(referrer.phone, data.referredBy, data.campaignId);
+                            sendUnlockSMS(referrer.phone, referralCode, campaignId);
                         }
                     }
                 }
@@ -863,9 +1434,19 @@ const server = http.createServer((req, res) => {
     }
     
     if (pathname.startsWith('/api/referral/') && req.method === 'GET') {
-        const campaignId = new URL(req.url, `http://${req.headers.host}`).searchParams.get('campaignId');
+        const campaignIdParam = new URL(req.url, `http://${req.headers.host}`).searchParams.get('campaignId');
         const referralCode = pathname.split('/')[3];
-        if (!referralCode) { setNoCacheHeaders(res); res.writeHead(400); return res.end(JSON.stringify({ error: 'Referral code required' })); }
+        if (!referralCode || !isValidReferralCode(referralCode)) { setNoCacheHeaders(res); res.writeHead(400); return res.end(JSON.stringify({ error: 'Valid referral code required' })); }
+        let campaignId = null;
+        if (campaignIdParam) {
+            if (!isValidCampaignId(campaignIdParam)) { setNoCacheHeaders(res); res.writeHead(400); return res.end(JSON.stringify({ error: 'Invalid campaign ID format' })); }
+            campaignId = campaignIdParam;
+            try {
+                if (!getCampaign(campaignId)) { setNoCacheHeaders(res); res.writeHead(404); return res.end(JSON.stringify({ error: 'Campaign not found' })); }
+            } catch (error) {
+                return sendJsonError(res, error);
+            }
+        }
         setNoCacheHeaders(res);
         res.writeHead(200, { 'Content-Type': 'application/json' });
         return res.end(JSON.stringify(getReferralStatus(referralCode, campaignId)));
@@ -888,10 +1469,45 @@ const server = http.createServer((req, res) => {
         return;
     }
     
-    // Static files
+    // Static files - with path traversal protection
     let filePath = pathname === '/' ? '/index.html' : pathname;
-    filePath = path.join(__dirname, filePath);
-    if (!filePath.startsWith(__dirname)) { res.writeHead(403); return res.end('Forbidden'); }
+    
+    // Sanitize pathname: remove null bytes
+    filePath = filePath.replace(/\0/g, '');
+    
+    // Block path traversal attempts: reject any path containing ..
+    if (filePath.includes('..')) {
+        res.writeHead(403); 
+        return res.end('Forbidden');
+    }
+    
+    // Allow specific data files needed by the frontend
+    if (filePath === '/data/campaigns.json') {
+        // Let it through to be handled by the static file server below
+    }
+    // Block absolute paths (Unix and Windows)
+    else if (filePath.startsWith('/') && filePath.length > 1 && !filePath.startsWith('/index.html') && !filePath.startsWith('/app.js') && !filePath.startsWith('/styles.css') && !filePath.startsWith('/admin.html') && !filePath.startsWith('/login.html') && !filePath.startsWith('/terms.html') && !filePath.startsWith('/admin.css')) {
+        // Allow only specific root-level files, block other absolute paths
+        const allowedRootFiles = ['/index.html', '/app.js', '/styles.css', '/admin.html', '/login.html', '/terms.html', '/admin.js', '/admin.css', '/login.js', '/campaign-loader.js', '/csrf.js', '/favicon.ico'];
+        const baseName = '/' + filePath.split('/').pop();
+        if (!allowedRootFiles.includes(baseName)) {
+            res.writeHead(403);
+            return res.end('Forbidden');
+        }
+    }
+    
+    // Resolve the full path and ensure it's within the app directory
+    const fullPath = path.resolve(__dirname, '.' + filePath);
+    const rootPath = path.resolve(__dirname);
+    
+    // Ensure resolved path is within the app directory (with trailing separator check)
+    const rootPathWithSep = rootPath.endsWith(path.sep) ? rootPath : rootPath + path.sep;
+    if (!fullPath.startsWith(rootPathWithSep) && fullPath !== rootPath) {
+        res.writeHead(403); 
+        return res.end('Forbidden');
+    }
+    
+    filePath = fullPath;
     const ext = path.extname(filePath).toLowerCase();
     fs.readFile(filePath, (err, content) => {
         if (err) {
@@ -917,14 +1533,45 @@ const server = http.createServer((req, res) => {
     });
 });
 
-server.listen(PORT, () => {
-    console.log(`🎯 Group Buying Server running at http://localhost:${PORT}`);
-    console.log(`Campaigns: ${Object.keys(getCampaigns()).join(', ') || 'none'}`);
-    
-    // Start the reminder SMS scheduler
-    console.log(`[Reminder SMS] Starting scheduler (checking every ${REMINDER_CHECK_INTERVAL / 60000} minutes)`);
-    scheduleReminderSMS(); // Run immediately on startup
-    setInterval(scheduleReminderSMS, REMINDER_CHECK_INTERVAL);
-});
+function startServer() {
+    server.listen(PORT, () => {
+        console.log(`🎯 Group Buying Server running at http://localhost:${PORT}`);
+        let campaignsForLog;
+        try {
+            campaignsForLog = getCampaigns();
+        } catch (error) {
+            logCampaignValidationError(error, 'Startup Validation');
+            console.error('[Startup Validation] Unable to continue until campaign data is fixed. Shutting down.');
+            process.exit(1);
+        }
+        console.log(`Campaigns: ${Object.keys(campaignsForLog).join(', ') || 'none'}`);
+        
+        // Start the reminder SMS scheduler
+        console.log(`[Reminder SMS] Starting scheduler (checking every ${REMINDER_CHECK_INTERVAL / 60000} minutes)`);
+        scheduleReminderSMS().catch(error => logCampaignValidationError(error, 'Reminder SMS')); // Run immediately on startup
+        setInterval(() => {
+            scheduleReminderSMS().catch(error => logCampaignValidationError(error, 'Reminder SMS'));
+        }, REMINDER_CHECK_INTERVAL);
+    });
+}
+
+if (require.main === module) {
+    startServer();
+}
 
 process.on('SIGTERM', () => { server.close(() => process.exit(0)); });
+
+module.exports = {
+    server,
+    startServer,
+    normalizePhone,
+    isValidPhone,
+    isValidEmail,
+    isValidCampaignId,
+    isValidReferralCode,
+    sanitizePhoneInput,
+    formatPhoneE164,
+    CampaignValidationError,
+    ensureCampaignValid,
+    validateCampaignCollection
+};

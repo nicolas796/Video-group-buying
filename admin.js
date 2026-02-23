@@ -98,11 +98,27 @@ async function onCampaignSelect() {
 }
 
 // Create new campaign
+// Helper to get CSRF token for API calls
+async function getCsrfToken() {
+    try {
+        const response = await fetch('/api/csrf-token', { credentials: 'same-origin' });
+        if (response.ok) {
+            const data = await response.json();
+            return data.token;
+        }
+    } catch (e) {
+        console.error('Failed to get CSRF token:', e);
+    }
+    return null;
+}
+
 async function createNewCampaign() {
     const name = prompt('Enter product name for the new campaign:');
     if (!name) return;
     
     const videoUrl = prompt('Enter m3u8 video URL (optional):') || '';
+    
+    const csrfToken = await getCsrfToken();
     
     const defaultCampaign = {
         productName: name,
@@ -148,8 +164,12 @@ async function createNewCampaign() {
     try {
         const response = await fetch('/api/campaigns', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(defaultCampaign)
+            headers: { 
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': csrfToken || ''
+            },
+            credentials: 'same-origin',
+            body: JSON.stringify({ ...defaultCampaign, csrfToken })
         });
         
         if (response.ok) {
@@ -285,6 +305,8 @@ async function saveCampaign(e) {
         return;
     }
     
+    const csrfToken = await getCsrfToken();
+    
     // Build countdown ISO string
     const countdownInput = document.getElementById('countdown-end').value;
     const localDate = new Date(countdownInput);
@@ -326,8 +348,12 @@ async function saveCampaign(e) {
     try {
         const response = await fetch(`/api/campaign/${currentCampaignId}`, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(updatedCampaign)
+            headers: { 
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': csrfToken || ''
+            },
+            credentials: 'same-origin',
+            body: JSON.stringify({ ...updatedCampaign, csrfToken })
         });
         
         if (response.ok) {
@@ -355,9 +381,15 @@ async function deleteCampaign() {
         return;
     }
     
+    const csrfToken = await getCsrfToken();
+    
     try {
         const response = await fetch(`/api/campaign/${currentCampaignId}`, {
-            method: 'DELETE'
+            method: 'DELETE',
+            headers: {
+                'X-CSRF-Token': csrfToken || ''
+            },
+            credentials: 'same-origin'
         });
         
         if (response.ok) {

@@ -62,7 +62,8 @@
         "couponCode": "GLOVE50"
       }
     ],
-    "termsUrl": "https://www.estreamly.com/legal/privacy"
+    "termsUrl": "https://www.estreamly.com/legal/privacy",
+    "test": "data"
   },
   "1aBcD2eFgHi": {
     "id": "1aBcD2eFgHi",
