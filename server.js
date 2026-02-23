@@ -61,7 +61,8 @@ const PATHS = {
     participants: path.join(DATA_DIR, 'participants.json'),
     optouts: path.join(DATA_DIR, 'optouts.json'),
     campaigns: path.join(DATA_DIR, 'campaigns.json'),
-    stats: path.join(DATA_DIR, 'stats.json')
+    stats: path.join(DATA_DIR, 'stats.json'),
+    notifySubscribers: path.join(DATA_DIR, 'notify-subscribers.json')
 };
 
 const DEFAULT_CONFIG = {
@@ -586,6 +587,31 @@ function addParticipant(phone, email, referredBy, campaignId = null) {
     };
     participants.push(newParticipant);
     return writeJson(PATHS.participants, participants) ? newParticipant : null;
+}
+
+// Notify me subscribers for future drops
+function getNotifySubscribers() {
+    return readJson(PATHS.notifySubscribers) || [];
+}
+
+function addNotifySubscriber(phone, email) {
+    const subscribers = getNotifySubscribers();
+    const normalizedPhone = formatPhoneE164(phone) || phone;
+    const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : email;
+    
+    // Check if already subscribed
+    const existing = subscribers.find(s => 
+        s.phone === normalizedPhone || s.email === normalizedEmail
+    );
+    if (existing) return { success: false, error: 'Already subscribed' };
+    
+    const newSubscriber = {
+        phone: normalizedPhone,
+        email: normalizedEmail,
+        subscribedAt: new Date().toISOString()
+    };
+    subscribers.push(newSubscriber);
+    return writeJson(PATHS.notifySubscribers, subscribers) ? { success: true, subscriber: newSubscriber } : { success: false, error: 'Failed to save' };
 }
 
 async function sendWelcomeSMS(phone, referralCode, campaignId = null) {
@@ -1422,6 +1448,33 @@ const server = http.createServer((req, res) => {
                 setNoCacheHeaders(res);
                 res.writeHead(200, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ success: true, referralCode: participant.referralCode, referrerUnlocked }));
+            } catch (e) { setNoCacheHeaders(res); res.writeHead(400); res.end(JSON.stringify({ error: 'Invalid data' })); }
+        });
+        return;
+    }
+    
+    if (pathname === '/api/notify-me' && req.method === 'POST') {
+        let body = '';
+        req.on('data', chunk => body += chunk);
+        req.on('end', () => {
+            try {
+                const data = JSON.parse(body);
+                if (!enforceCsrf(req, res, data?.csrfToken)) return;
+                delete data.csrfToken;
+                if (!data.phone || !isValidPhone(data.phone)) { setNoCacheHeaders(res); res.writeHead(400); return res.end(JSON.stringify({ error: 'Valid phone required' })); }
+                if (!data.email || !isValidEmail(data.email)) { setNoCacheHeaders(res); res.writeHead(400); return res.end(JSON.stringify({ error: 'Valid email required' })); }
+                const result = addNotifySubscriber(data.phone, data.email);
+                setNoCacheHeaders(res);
+                if (result.success) {
+                    res.writeHead(201, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ success: true }));
+                } else if (result.error === 'Already subscribed') {
+                    res.writeHead(409, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: 'Already subscribed' }));
+                } else {
+                    res.writeHead(500, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ error: result.error }));
+                }
             } catch (e) { setNoCacheHeaders(res); res.writeHead(400); res.end(JSON.stringify({ error: 'Invalid data' })); }
         });
         return;

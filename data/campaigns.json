@@ -76,7 +76,7 @@
       "accountSid": "",
       "authToken": "",
       "phoneNumber": "",
-      "domain": ""
+      "domain": "http://localhost:8080"
     },
     "pricing": {
       "initialPrice": 40,
@@ -101,7 +101,7 @@
       ]
     },
     "referralsNeeded": 3,
-    "countdownEnd": "2026-03-16T04:59:00.000Z",
+    "countdownEnd": "2026-02-12T05:59:00.000Z",
     "description": "<h4>Premium Coffee Experience</h4><p>Direct trade from Ethiopia Yirgacheffe region</p><ul><li>100% Arabica beans</li><li>Medium roast with notes of blueberry and chocolate</li><li>Freshly roasted within 48 hours of shipping</li><li>12 oz (340g) bag</li><li>Whole bean or ground options</li><li>Certified organic and fair trade</li></ul>",
     "price": 15,
     "originalPrice": 40,
@@ -127,7 +127,8 @@
         "price": 15,
         "couponCode": "COFFEE25"
       }
-    ]
+    ],
+    "termsUrl": ""
   },
   "XyZ789pQrSt": {
     "id": "XyZ789pQrSt",

@@ -20,6 +20,80 @@
         <div class="content-section" id="main-content">
             <!-- Landing View -->
             <div id="landing-view">
+                <!-- Drop Ended View - Hidden by default -->
+                <div id="drop-ended-view" class="hidden">
+                    <!-- Join Box Style - Get Notified -->
+                    <div class="join-box ended-box">
+                        <h2>🎉 Drop is over</h2>
+                        <p class="ended-subtitle">Get notified for our next drop!</p>
+                        <form id="notify-form">
+                            <input type="hidden" name="csrfToken" id="notify-csrf-token">
+                            <div class="input-row">
+                                <div class="input-group half">
+                                    <input type="tel" id="notify-phone" placeholder="Cellphone" required>
+                                </div>
+                                <div class="input-group half">
+                                    <input type="email" id="notify-email" placeholder="Email" required>
+                                </div>
+                            </div>
+                            <button type="submit" class="join-btn notify-btn">🔔 Get notified for next drop</button>
+                        </form>
+                        <p class="terms-compliance">
+                            By joining, you agree to our <a href="#" id="notify-terms-link" target="_blank" rel="noopener noreferrer">Terms & Conditions</a>
+                        </p>
+                    </div>
+                    
+                    <!-- Final Stats Countdown Style -->
+                    <div class="countdown-section landing ended-stats">
+                        <p class="countdown-label">📊 Final Results</p>
+                        <div class="final-stats-row">
+                            <div class="stat-item">
+                                <span class="stat-number" id="ended-buyer-count">0</span>
+                                <span class="stat-label">Buyers</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-number final-price" id="ended-final-price">$0</span>
+                                <span class="stat-label">Final Price</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-number savings" id="ended-savings">$0</span>
+                                <span class="stat-label">Savings</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Product & Progress - Same as active page -->
+                    <div class="product-progress-compact">
+                        <div class="product-mini">
+                            <img id="ended-product-img" src="" alt="Product">
+                            <div class="product-mini-info">
+                                <div class="product-name" id="ended-product-name"></div>
+                                <div class="price-tag ended-tag">
+                                    <span class="initial-price" id="ended-initial-price"></span>
+                                    <span class="current-price final-price" id="ended-current-price">$0</span>
+                                </div>
+                            </div>
+                            <button class="info-btn" id="ended-info-btn" onclick="toggleEndedProductInfo()">
+                                <span class="chevron">⌄</span>
+                            </button>
+                        </div>
+                        
+                        <div class="progress-bar-container mini ended-progress">
+                            <div class="progress-bar ended-bar" id="ended-progress-bar"></div>
+                        </div>
+                        <div class="unlocked-text ended-text">Drop ended - Final price achieved!</div>
+                        
+                        <!-- Expandable Product Description -->
+                        <div class="product-details" id="ended-product-details">
+                            <div class="details-content" id="ended-product-details-content">
+                                <!-- Content loaded dynamically -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Active Drop Content -->
+                <div id="active-drop-content">
                 <!-- Join Box - AT THE TOP, NO SCROLLING -->
                 <div class="join-box">
                     <h2>Join to unlock</h2>
@@ -85,7 +159,8 @@
                         </div>
                     </div>
                 </div>
-            </div>
+                </div><!-- /active-drop-content -->
+            </div><!-- /landing-view -->
             
             <!-- Success View (Hidden initially) -->
             <div id="success-view" class="hidden">

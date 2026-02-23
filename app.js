@@ -332,15 +332,103 @@ function startCountdown() {
     
     function updateTimer() {
         const diff = endDate - new Date();
-        const days = diff > 0 ? Math.floor(diff / (1000 * 60 * 60 * 24)) : 0;
-        const hours = diff > 0 ? Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)) : 0;
-        const minutes = diff > 0 ? Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60)) : 0;
-        const seconds = diff > 0 ? Math.floor((diff % (1000 * 60)) / 1000) : 0;
+        
+        // Check if drop has ended
+        if (diff <= 0) {
+            showDropEndedView();
+            return;
+        }
+        
+        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((diff % (1000 * 60)) / 1000);
         updateCountdownDisplay(days, hours, minutes, seconds);
     }
     
     updateTimer();
     setInterval(updateTimer, 1000);
+}
+
+// Show the drop ended view with final stats
+function showDropEndedView() {
+    const dropEndedView = document.getElementById('drop-ended-view');
+    const activeContent = document.getElementById('active-drop-content');
+
+    if (dropEndedView) dropEndedView.classList.remove('hidden');
+    if (activeContent) activeContent.classList.add('hidden');
+
+    // Update ended view with final data
+    const campaign = CampaignLoader.getCurrentCampaign();
+    if (!campaign) return;
+
+    // Product image and name
+    const endedImg = document.getElementById('ended-product-img');
+    const endedName = document.getElementById('ended-product-name');
+    if (endedImg) endedImg.src = campaign.productImage || campaign.imageUrl || '';
+    if (endedName) endedName.textContent = campaign.productName || '';
+
+    // Calculate final price based on buyer count
+    const buyers = config.currentBuyers || config.initialBuyers || 0;
+    const initialPrice = config.initialPrice || 80;
+    let finalPrice = initialPrice;
+
+    const tiers = config.priceTiers || [];
+    for (const tier of tiers) {
+        if (buyers >= tier.buyers) {
+            finalPrice = tier.price;
+        }
+    }
+
+    const savings = initialPrice - finalPrice;
+
+    // Update stats
+    const buyerCountEl = document.getElementById('ended-buyer-count');
+    const finalPriceEl = document.getElementById('ended-final-price');
+    const savingsEl = document.getElementById('ended-savings');
+    const initialPriceEl = document.getElementById('ended-initial-price');
+    const currentPriceEl = document.getElementById('ended-current-price');
+
+    if (buyerCountEl) buyerCountEl.textContent = buyers.toLocaleString();
+    if (finalPriceEl) finalPriceEl.textContent = '$' + finalPrice;
+    if (savingsEl) savingsEl.textContent = '$' + savings;
+    if (initialPriceEl) initialPriceEl.textContent = '$' + initialPrice;
+    if (currentPriceEl) currentPriceEl.textContent = '$' + finalPrice;
+
+    // Update product details
+    const detailsContent = document.getElementById('ended-product-details-content');
+    if (detailsContent && campaign.productDescription) {
+        const cleanDescription = DOMPurify.sanitize(campaign.productDescription);
+        detailsContent.innerHTML = cleanDescription;
+    }
+
+    // Update progress bar (100% since drop ended)
+    const progressBar = document.getElementById('ended-progress-bar');
+    if (progressBar) progressBar.style.width = '100%';
+
+    // Set up terms link - same logic as active page
+    const notifyTermsLink = document.getElementById('notify-terms-link');
+    if (notifyTermsLink) {
+        notifyTermsLink.href = config.termsUrl || campaign.termsUrl || '#';
+        notifyTermsLink.onclick = (e) => {
+            if (!config.termsUrl && !campaign.termsUrl) {
+                e.preventDefault();
+                alert('Terms & Conditions coming soon');
+            }
+        };
+    }
+}
+
+// Toggle product info for ended drop
+function toggleEndedProductInfo() {
+    const details = document.getElementById('ended-product-details');
+    const btn = document.getElementById('ended-info-btn');
+    if (!details || !btn) return;
+
+    const isExpanded = details.classList.contains('expanded');
+    details.classList.toggle('expanded');
+    btn.classList.toggle('expanded');
+    btn.querySelector('.chevron').textContent = isExpanded ? '⌄' : '⌃';
 }
 
 function updateCountdownDisplay(days, hours, minutes, seconds) {
@@ -437,6 +525,53 @@ joinForm.addEventListener('submit', async (e) => {
         alert('Network error. Please try again.');
     }
 });
+
+// Notify form handler (for drop ended view)
+const notifyForm = document.getElementById('notify-form');
+if (notifyForm) {
+    notifyForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        let phone = document.getElementById('notify-phone').value.trim();
+        const email = document.getElementById('notify-email').value;
+        
+        // Auto-format phone
+        const digitsOnly = phone.replace(/\D/g, '');
+        if (digitsOnly.length === 10 && !phone.startsWith('+') && !phone.startsWith('1')) {
+            phone = '+1' + digitsOnly;
+        } else if (digitsOnly.length === 11 && digitsOnly.startsWith('1') && !phone.startsWith('+')) {
+            phone = '+' + digitsOnly;
+        }
+        
+        if (digitsOnly.length < 10) { alert('Please enter a valid phone number'); return; }
+        if (!email.includes('@')) { alert('Please enter a valid email'); return; }
+        
+        const csrfToken = await getCsrfToken();
+        
+        try {
+            const response = await fetch('/api/notify-me', {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'X-CSRF-Token': csrfToken || ''
+                },
+                credentials: 'same-origin',
+                body: JSON.stringify({ phone, email, csrfToken })
+            });
+            
+            if (response.ok) {
+                alert('✅ You\'re on the list! We\'ll notify you about our next drop.');
+                notifyForm.reset();
+            } else {
+                const error = await response.json();
+                alert(error.error || 'Something went wrong. Please try again.');
+            }
+        } catch (e) {
+            console.error('Notify error:', e);
+            alert('Network error. Please try again.');
+        }
+    });
+}
 
 function setupReferralSection() {
     const tiers = config.priceTiers || [];

@@ -1475,3 +1475,127 @@ input {
     -ms-user-select: text;
     user-select: text;
 }
+
+/* ============================================
+   DROP ENDED VIEW
+   ============================================ */
+
+#drop-ended-view {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+#drop-ended-view.hidden {
+    display: none;
+}
+
+/* Ended box styling - same as join-box */
+.join-box.ended-box {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(139, 92, 246, 0.15));
+    border: 1px solid rgba(99, 102, 241, 0.3);
+}
+
+.join-box.ended-box h2 {
+    font-size: 20px;
+    margin-bottom: 4px;
+}
+
+.ended-subtitle {
+    color: #aaa;
+    font-size: 13px;
+    margin-bottom: 12px;
+    text-align: center;
+}
+
+.notify-btn {
+    background: linear-gradient(135deg, #6366f1, #8b5cf6) !important;
+    font-size: 15px !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.notify-btn:hover {
+    background: linear-gradient(135deg, #4f46e5, #7c3aed) !important;
+}
+
+/* Ended stats - countdown style */
+.countdown-section.landing.ended-stats {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.final-stats-row {
+    display: flex;
+    justify-content: center;
+    gap: 24px;
+    padding: 12px 0;
+}
+
+.stat-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+}
+
+.stat-number {
+    font-size: 24px;
+    font-weight: 700;
+    color: #fff;
+    line-height: 1;
+}
+
+.stat-number.final-price {
+    color: #4ade80;
+}
+
+.stat-number.savings {
+    color: #fbbf24;
+}
+
+.stat-item .stat-label {
+    font-size: 11px;
+    color: #888;
+    text-transform: uppercase;
+    margin-top: 4px;
+    letter-spacing: 0.5px;
+}
+
+/* Product section - same as active */
+#ended-product-img {
+    width: 60px;
+    height: 60px;
+    object-fit: cover;
+    border-radius: 8px;
+}
+
+.price-tag.ended-tag .current-price.final-price {
+    color: #4ade80;
+}
+
+.progress-bar.ended-bar {
+    background: linear-gradient(90deg, #4ade80, #22c55e);
+}
+
+.unlocked-text.ended-text {
+    color: #4ade80;
+    font-weight: 600;
+}
+
+/* Hide active content when drop ended */
+#active-drop-content.hidden {
+    display: none;
+}
+
+/* Responsive adjustments */
+@media (min-width: 768px) {
+    .final-stats-row {
+        gap: 40px;
+    }
+    
+    .stat-number {
+        font-size: 28px;
+    }
+}
