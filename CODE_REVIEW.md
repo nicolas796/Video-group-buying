@@ -312,6 +312,179 @@ The codebase implements a functional group-buying landing page with campaign man
 
 ---
 
+## Rate Limiting Implementation
+
+**Status:** ✅ Implemented  
+**Date:** 2026-02-24
+
+### Overview
+
+The server implements tiered rate limiting based on HTTP method and path:
+
+| Method | Path | Limit | Window |
+|--------|------|-------|--------|
+| GET | `/api/*` | 100 req/min | 60 seconds |
+| POST, PUT, DELETE | `/api/*` (except `/api/login`) | 30 req/min | 60 seconds |
+| POST | `/api/login` | 5 attempts | 15 minutes |
+| All | Localhost IPs | Unlimited | - |
+
+### Implementation Details
+
+- **GET bucket**: 100 requests per minute per IP for all GET requests to `/api/*`
+- **Write bucket**: 30 requests per minute per IP for POST/PUT/DELETE to `/api/*`
+- **Login protection**: Separate 5 attempts per 15 minutes for `/api/login` (via `checkLoginRateLimit`)
+- **Localhost bypass**: All rate limits bypassed for localhost IPs (`127.0.0.1`, `::1`, etc.)
+- **Cleanup**: Old entries are automatically cleaned up (1% chance per request + manual cleanup available)
+- **Memory safety**: Entries older than the window are pruned to prevent unbounded map growth
+
+### Testing
+
+#### Manual Testing with curl
+
+**Test 1: GET rate limit (100 req/min)**
+```bash
+# Start server in one terminal
+cd /home/baill/.openclaw/workspace/group-buying && node server.js
+
+# In another terminal, send 120 GET requests
+for i in {1..120}; do
+  curl -s -o /dev/null -w "%{http_code} " http://localhost:8080/api/config
+done
+
+# Expected: First 100 requests return 200, requests 101-120 return 429
+# Wait 60 seconds and requests should succeed again
+```
+
+**Test 2: POST rate limit (30 req/min)**
+```bash
+# Send 40 POST requests to /api/join
+for i in {1..40}; do
+  curl -s -o /dev/null -w "%{http_code} " \
+    -X POST \
+    -H "Content-Type: application/json" \
+    -H "X-CSRF-Token: test" \
+    -d '{"phone":"+15551234567","email":"test@example.com","csrfToken":"test"}' \
+    http://localhost:8080/api/join
+done
+
+# Expected: First 30 requests return 400 (missing campaign) or 403 (CSRF),
+#           requests 31-40 return 429 Too Many Requests
+```
+
+**Test 3: Login rate limit (5 attempts/15min)**
+```bash
+# Send 7 login attempts
+for i in {1..7}; do
+  curl -s -o /dev/null -w "%{http_code} " \
+    -X POST \
+    -H "Content-Type: application/json" \
+    -H "X-CSRF-Token: <get-from-csrf-endpoint>" \
+    -d '{"username":"admin","password":"wrong","csrfToken":"<token>"}' \
+    http://localhost:8080/api/login
+done
+
+# Expected: First 5 return 401 (wrong password), requests 6-7 return 429
+```
+
+**Test 4: Verify localhost bypass**
+```bash
+# From the same machine running the server, send many requests
+for i in {1..150}; do
+  curl -s -o /dev/null -w "%{http_code} " http://localhost:8080/api/config
+done
+
+# Expected: All 150 requests return 200 (no rate limiting on localhost)
+```
+
+#### Automated Test Script
+
+Create `test-rate-limits.js`:
+```javascript
+const http = require('http');
+
+const HOST = 'localhost';
+const PORT = 8080;
+
+function makeRequest(method, path, body = null) {
+  return new Promise((resolve, reject) => {
+    const options = {
+      hostname: HOST,
+      port: PORT,
+      path: path,
+      method: method,
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    };
+
+    const req = http.request(options, (res) => {
+      resolve({
+        statusCode: res.statusCode,
+        headers: res.headers
+      });
+    });
+
+    req.on('error', reject);
+    if (body) req.write(JSON.stringify(body));
+    req.end();
+  });
+}
+
+async function testGetRateLimit() {
+  console.log('Testing GET rate limit (100 req/min)...');
+  let successCount = 0;
+  let rateLimitedCount = 0;
+
+  for (let i = 1; i <= 110; i++) {
+    const res = await makeRequest('GET', '/api/config');
+    if (res.statusCode === 200) successCount++;
+    else if (res.statusCode === 429) rateLimitedCount++;
+
+    if (i === 100) console.log(`  At 100 requests: ${successCount} success, ${rateLimitedCount} limited`);
+  }
+
+  console.log(`  Final: ${successCount} success, ${rateLimitedCount} rate limited`);
+  console.log(`  Result: ${successCount === 100 && rateLimitedCount === 10 ? 'PASS' : 'FAIL'}`);
+}
+
+async function testPostRateLimit() {
+  console.log('Testing POST rate limit (30 req/min)...');
+  let successCount = 0;
+  let rateLimitedCount = 0;
+
+  for (let i = 1; i <= 40; i++) {
+    const res = await makeRequest('POST', '/api/join', {
+      phone: '+15551234567',
+      email: 'test@example.com',
+      csrfToken: 'test'
+    });
+    if (res.statusCode !== 429) successCount++;
+    else rateLimitedCount++;
+
+    if (i === 30) console.log(`  At 30 requests: ${successCount} success, ${rateLimitedCount} limited`);
+  }
+
+  console.log(`  Final: ${successCount} success, ${rateLimitedCount} rate limited`);
+  console.log(`  Result: ${successCount === 30 && rateLimitedCount === 10 ? 'PASS' : 'FAIL'}`);
+}
+
+(async () => {
+  await testGetRateLimit();
+  console.log('');
+  await testPostRateLimit();
+})();
+```
+
+Run with: `node test-rate-limits.js`
+
+### Code Changes
+
+Key functions added/modified in `server.js`:
+- `getRateLimitBucket(method, path)` - Determines which bucket a request belongs to
+- `checkRateLimit(ip, method, path)` - Main rate limit checker (now accepts context)
+- `cleanOldRateLimitEntries()` - Removes stale entries to prevent memory leaks
+- Updated HTTP server handler to call `checkRateLimit` with method and path
+
 ## Conclusion
 
 The codebase is functional but requires security hardening before production use. The most critical issues are XSS vulnerabilities and input validation gaps. After addressing security, focus on moving from file-based storage to a proper database for reliability at scale.

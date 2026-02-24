@@ -23,14 +23,19 @@ All sensitive configuration (Twilio credentials, admin overrides, HTTPS settings
 4. `data/config.json` may contain runtime values for Twilio credentials once you save them via the admin panel. Treat that file as sensitive data: never commit it after populating secrets. If you need a sanitized reference, create a `config.example.json` without real secrets.
 5. See `SECRETS.md` for the full secrets-management checklist (rotation, storage, incident response).
 
-## HTTPS Enforcement
+## HTTPS Enforcement Middleware
 
-- When `NODE_ENV=production`, the server automatically redirects HTTP traffic to HTTPS and sets an HSTS header (`Strict-Transport-Security: max-age=31536000; includeSubDomains`).
-- Override behavior with env vars:
-  - `FORCE_HTTPS=true|false` — force enable/disable redirection regardless of `NODE_ENV`.
-  - `HTTPS_EXEMPT_HOSTS=localhost,127.0.0.1` — comma-separated list of hosts/IPs that should not be redirected (localhost + loopback are exempt by default).
-- Requests served over HTTPS automatically receive HSTS unless the host is exempt.
-- Local development stays on HTTP because requests from localhost/127.0.0.1 are automatically skipped.
+A dedicated middleware now runs before every request:
+
+1. In production (`NODE_ENV=production`) or whenever `FORCE_HTTPS=true`, HTTP traffic is 301-redirected to the HTTPS version of the requested host.
+2. Once a request is already secure, the middleware adds HSTS (`Strict-Transport-Security: max-age=31536000; includeSubDomains`) so browsers remember to use HTTPS.
+3. Hosts/IPs listed in `HTTPS_EXEMPT_HOSTS` (defaults: `localhost,127.0.0.1`) skip both the redirect and the HSTS header, keeping local development HTTP-friendly.
+
+Environment overrides:
+- `FORCE_HTTPS=true|false` — force enable/disable the middleware regardless of `NODE_ENV` (defaults to `true` in production, `false` elsewhere).
+- `HTTPS_EXEMPT_HOSTS=localhost,127.0.0.1` — comma-separated list of hosts/IPs that should never be redirected.
+
+Because the middleware runs before any other handler, no application code runs without HTTPS when enforcement is active.
 
 ## Admin Panel
 

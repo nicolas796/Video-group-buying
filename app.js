@@ -5,6 +5,7 @@ let userReferralCode = null;
 let referredBy = null;
 let referralsNeeded = 2;
 let currentCampaignId = null;
+let bestPriceValue = 20;
 
 function getReferralFromUrl() {
     return new URLSearchParams(window.location.search).get('ref');
@@ -120,20 +121,28 @@ function initPlayer() {
     
     let hasUnmuted = false;
     
-    // Unmute on first user interaction (browser requirement for sound)
+    // Click on video toggles mute/unmute (instead of pause/play)
+    video.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (video) {
+            video.muted = !video.muted;
+            hasUnmuted = !video.muted;
+        }
+    });
+    
+    // Unmute on first user interaction anywhere (browser requirement for sound)
     const unmuteOnInteraction = () => {
         if (!hasUnmuted && video) {
             video.muted = false;
             hasUnmuted = true;
-            // Remove listeners after first interaction
-            document.removeEventListener('click', unmuteOnInteraction);
-            document.removeEventListener('touchstart', unmuteOnInteraction);
-            document.removeEventListener('scroll', unmuteOnInteraction);
         }
     };
     
-    // Wait for first user interaction to enable sound
-    document.addEventListener('click', unmuteOnInteraction, { once: true });
+    // Wait for first user interaction to enable sound (excluding video clicks)
+    document.addEventListener('click', (e) => {
+        if (e.target !== video) unmuteOnInteraction();
+    }, { once: true });
     document.addEventListener('touchstart', unmuteOnInteraction, { once: true });
     document.addEventListener('scroll', unmuteOnInteraction, { once: true });
     
@@ -575,20 +584,28 @@ if (notifyForm) {
 
 function setupReferralSection() {
     const tiers = config.priceTiers || [];
-    const bestPrice = tiers.length > 0 ? Math.min(...tiers.map(t => t.price)) : 20;
+    bestPriceValue = tiers.length > 0 ? Math.min(...tiers.map(t => t.price)) : 20;
     
     const bestPriceEl = document.getElementById('best-price');
     const unlockedPriceValueEl = document.getElementById('unlocked-price-value');
     const shareBestPriceEl = document.getElementById('share-best-price');
     const referralsNeededTextEl = document.getElementById('referrals-needed-text');
     
-    if (bestPriceEl) bestPriceEl.textContent = bestPrice;
-    if (unlockedPriceValueEl) unlockedPriceValueEl.textContent = bestPrice;
-    if (shareBestPriceEl) shareBestPriceEl.textContent = bestPrice;
+    if (bestPriceEl) bestPriceEl.textContent = bestPriceValue;
+    if (unlockedPriceValueEl) unlockedPriceValueEl.textContent = bestPriceValue;
+    if (shareBestPriceEl) shareBestPriceEl.textContent = bestPriceValue;
     if (referralsNeededTextEl) referralsNeededTextEl.textContent = referralsNeeded;
-    
+
+    updateShareHintCopy();
     generateReferralDots(referralsNeeded);
     pollReferralStatus();
+}
+
+function updateShareHintCopy() {
+    const shareReferralsLabelEl = document.getElementById('share-referrals-label');
+    if (!shareReferralsLabelEl) return;
+    const plural = referralsNeeded === 1 ? 'friend' : 'friends';
+    shareReferralsLabelEl.textContent = `${referralsNeeded} ${plural}`;
 }
 
 function generateReferralDots(count) {
@@ -624,6 +641,7 @@ function updateReferralUI(data) {
     const referralsNeededTextEl = document.getElementById('referrals-needed-text');
     
     if (referralsNeededTextEl) referralsNeededTextEl.textContent = referralsNeeded;
+    updateShareHintCopy();
     generateReferralDots(referralsNeeded);
     
     for (let i = 0; i < referralsNeeded; i++) {

@@ -8,25 +8,47 @@ const addFormats = require('ajv-formats');
 
 const PORT = process.env.PORT || 8080;
 const NODE_ENV = process.env.NODE_ENV || 'development';
-const CSP_POLICY = [
+const CSP_REPORT_ENDPOINT = process.env.CSP_REPORT_ENDPOINT || '/csp-report';
+const CSP_REPORT_ONLY = (process.env.CSP_REPORT_ONLY || '').trim().toLowerCase() === 'true';
+const CSP_INLINE_SCRIPT_HASHES = [
+    "'sha256-2bGHMrl77eVSsuQU10LbbN1Qrqb73iE3YP1+L9igUJI='",
+    "'sha256-rr65mWwZJnb5bUhQe/lNU42AdlfN1rEFOtlIf3NGatw='",
+    "'sha256-KSRRsZ+kzH2uXHwYEr4gQoONH5uXlxvjQwjGtsu+ORA='"
+];
+const CSP_SCRIPT_SRC = [
+    "'self'",
+    'https://cdn.jsdelivr.net',
+    ...CSP_INLINE_SCRIPT_HASHES
+].join(' ');
+const CSP_POLICY_DIRECTIVES = [
     "default-src 'self'",
-    "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net",
+    `script-src ${CSP_SCRIPT_SRC}`,
+    "script-src-attr 'unsafe-inline'",
     "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net",
     "img-src 'self' data: https:",
     "media-src 'self' https: blob:",
     "font-src 'self' data:",
-    "connect-src 'self'",
+    "connect-src 'self' https://api.twilio.com",
+    "worker-src 'self' blob:",
+    "frame-src 'none'",
+    "frame-ancestors 'none'",
     "form-action 'self'",
     "base-uri 'self'",
-    "frame-ancestors 'none'",
     "object-src 'none'",
-    "worker-src 'self' blob:"
-].join('; ');
+    `report-uri ${CSP_REPORT_ENDPOINT}`
+];
+const CSP_POLICY = CSP_POLICY_DIRECTIVES.join('; ');
 const DATA_DIR = path.join(__dirname, 'data');
 const DEFAULT_REFERRALS_NEEDED = 2;
 const MAX_REFERRALS = 10;
-const RATE_LIMIT_WINDOW = 60000;
-const RATE_LIMIT_MAX = 10;
+// Tiered rate limiting constants
+const RATE_LIMIT_GET_MAX = 100;        // 100 GET requests per minute
+const RATE_LIMIT_WRITE_MAX = 30;       // 30 POST/PUT/DELETE requests per minute
+const RATE_LIMIT_WINDOW = 60000;       // 1 minute window
+
+// Map to store tiered rate limits: { ip => { get: [...timestamps], write: [...timestamps], lastRequest: timestamp } }
+const tieredRateLimitMap = new Map();
+
 const ALLOWED_COUNTRY_CODES = (process.env.ALLOWED_COUNTRY_CODES || '1')
     .split(',')
     .map(code => code.trim())
@@ -62,7 +84,8 @@ const PATHS = {
     optouts: path.join(DATA_DIR, 'optouts.json'),
     campaigns: path.join(DATA_DIR, 'campaigns.json'),
     stats: path.join(DATA_DIR, 'stats.json'),
-    notifySubscribers: path.join(DATA_DIR, 'notify-subscribers.json')
+    notifySubscribers: path.join(DATA_DIR, 'notify-subscribers.json'),
+    cspReportsLog: path.join(DATA_DIR, 'csp-reports.log')
 };
 
 const DEFAULT_CONFIG = {
@@ -257,10 +280,17 @@ function validateCampaignCollection(rawCampaigns = {}, { throwOnError = false } 
 
 function initializeFiles() {
     Object.entries(PATHS).forEach(([key, filePath]) => {
-        if (!fs.existsSync(filePath)) {
-            const defaultData = key === 'config' ? DEFAULT_CONFIG : key === 'campaigns' || key === 'stats' ? {} : [];
-            writeJson(filePath, defaultData);
+        if (fs.existsSync(filePath)) return;
+        if (key === 'cspReportsLog') {
+            fs.writeFileSync(filePath, '');
+            return;
         }
+        const defaultData = key === 'config'
+            ? DEFAULT_CONFIG
+            : key === 'campaigns' || key === 'stats'
+                ? {}
+                : [];
+        writeJson(filePath, defaultData);
     });
 }
 initializeFiles();
@@ -372,6 +402,21 @@ function readJson(filePath) {
 
 function writeJson(filePath, data) {
     try { fs.writeFileSync(filePath, JSON.stringify(data, null, 2)); return true; } catch (e) { return false; }
+}
+
+function logCspReport(report, req) {
+    if (!report) return;
+    const entry = {
+        timestamp: new Date().toISOString(),
+        userAgent: req?.headers?.['user-agent'] || null,
+        ip: req?.socket?.remoteAddress || null,
+        report
+    };
+    fs.appendFile(PATHS.cspReportsLog, `${JSON.stringify(entry)}\n`, err => {
+        if (err) {
+            console.error('[CSP Report] Failed to write report', err.message);
+        }
+    });
 }
 
 function sanitizePhoneInput(phone) {
@@ -699,6 +744,38 @@ function getHostForRequest(req) {
     return req.headers['x-forwarded-host'] || req.headers.host || '';
 }
 
+function getClientIp(req) {
+    const raw = (req?.headers?.['x-forwarded-for'] || req?.socket?.remoteAddress || '') || '';
+    return raw.split(',')[0].trim();
+}
+
+function enforceHttpsMiddleware(req, res, clientIP = null) {
+    const clientAddress = clientIP || getClientIp(req);
+    const requestHost = getHostForRequest(req);
+    const enforcingHttps = FORCE_HTTPS && !shouldSkipHttps(requestHost, clientAddress);
+    const requestIsSecure = isSecureRequest(req);
+
+    if (!enforcingHttps) {
+        return { handled: false, isSecure: requestIsSecure, enforcing: false, host: requestHost };
+    }
+
+    if (!requestIsSecure) {
+        const redirectHost = requestHost || req.headers.host;
+        if (redirectHost) {
+            const location = `https://${redirectHost}${req.url}`;
+            res.writeHead(301, { Location: location, 'Content-Type': 'text/plain' });
+            res.end('Redirecting to HTTPS');
+        } else {
+            res.writeHead(400, { 'Content-Type': 'text/plain' });
+            res.end('HTTPS required');
+        }
+        return { handled: true, isSecure: false, enforcing: true, host: requestHost };
+    }
+
+    res.setHeader('Strict-Transport-Security', HSTS_HEADER_VALUE);
+    return { handled: false, isSecure: true, enforcing: true, host: requestHost };
+}
+
 // Login rate limiting: 5 attempts per 15 minutes
 const LOGIN_RATE_LIMIT_MAX = 5;
 const LOGIN_RATE_LIMIT_WINDOW = 15 * 60 * 1000; // 15 minutes
@@ -959,15 +1036,116 @@ async function scheduleReminderSMS() {
 function isLocalhost(ip) {
     return LOCALHOST_IPS.includes(ip) || ip?.startsWith('127.') || ip === 'localhost';
 }
-function checkRateLimit(ip) {
-    // Bypass rate limiting for localhost
-    if (isLocalhost(ip)) return { allowed: true };
+
+/**
+ * Determine the rate limit bucket for a given request method and path.
+ * @param {string} method - HTTP method (GET, POST, PUT, DELETE, etc.)
+ * @param {string} path - Request path
+ * @returns {string|null} - Bucket name ('get', 'write') or null if exempt
+ */
+function getRateLimitBucket(method, path) {
+    // Login endpoint has its own separate rate limiter
+    if (path === '/api/login') {
+        return null; // Exempt from tiered limiting, handled by checkLoginRateLimit
+    }
+
+    const normalizedMethod = (method || '').toUpperCase();
+
+    // GET requests go to the 'get' bucket
+    if (normalizedMethod === 'GET') {
+        return 'get';
+    }
+
+    // POST, PUT, DELETE go to the 'write' bucket
+    if (['POST', 'PUT', 'DELETE'].includes(normalizedMethod)) {
+        return 'write';
+    }
+
+    // Other methods (OPTIONS, HEAD, etc.) - no limiting
+    return null;
+}
+
+/**
+ * Clean up rate limit entries older than the window to prevent unbounded growth.
+ * This should be called periodically (e.g., on a schedule or probabilistically).
+ */
+function cleanOldRateLimitEntries() {
     const now = Date.now();
-    const requests = (rateLimitMap.get(ip) || []).filter(time => time > now - RATE_LIMIT_WINDOW);
-    if (requests.length >= RATE_LIMIT_MAX) return { allowed: false, retryAfter: Math.ceil((requests[0] + RATE_LIMIT_WINDOW - now) / 1000) };
-    requests.push(now);
-    rateLimitMap.set(ip, requests);
-    return { allowed: true };
+    const cutoff = now - RATE_LIMIT_WINDOW;
+    let cleanedCount = 0;
+
+    for (const [ip, buckets] of tieredRateLimitMap.entries()) {
+        // Clean up old timestamps in each bucket
+        if (buckets.get) {
+            buckets.get = buckets.get.filter(time => time > cutoff);
+        }
+        if (buckets.write) {
+            buckets.write = buckets.write.filter(time => time > cutoff);
+        }
+
+        // Remove entry if all buckets are empty and last request was a while ago
+        const getCount = buckets.get?.length || 0;
+        const writeCount = buckets.write?.length || 0;
+        const lastRequest = buckets.lastRequest || 0;
+
+        if (getCount === 0 && writeCount === 0 && lastRequest < cutoff) {
+            tieredRateLimitMap.delete(ip);
+            cleanedCount++;
+        }
+    }
+
+    if (cleanedCount > 0) {
+        console.log(`[Rate Limit] Cleaned up ${cleanedCount} old entries. Current size: ${tieredRateLimitMap.size}`);
+    }
+}
+
+/**
+ * Check tiered rate limit for a given IP, method, and path.
+ * @param {string} ip - Client IP address
+ * @param {string} method - HTTP method
+ * @param {string} path - Request path
+ * @returns {Object} - { allowed: boolean, retryAfter?: number, bucket?: string }
+ */
+function checkRateLimit(ip, method, path) {
+    // Bypass rate limiting for localhost
+    if (isLocalhost(ip)) {
+        return { allowed: true };
+    }
+
+    const bucket = getRateLimitBucket(method, path);
+
+    // No rate limiting for this request type (e.g., OPTIONS, HEAD, or login endpoint)
+    if (!bucket) {
+        return { allowed: true };
+    }
+
+    const now = Date.now();
+
+    // Get or initialize the IP's bucket data
+    let ipData = tieredRateLimitMap.get(ip);
+    if (!ipData) {
+        ipData = { get: [], write: [], lastRequest: now };
+        tieredRateLimitMap.set(ip, ipData);
+    }
+    ipData.lastRequest = now;
+
+    // Filter out old timestamps outside the window
+    const cutoff = now - RATE_LIMIT_WINDOW;
+    ipData[bucket] = (ipData[bucket] || []).filter(time => time > cutoff);
+
+    // Determine the limit based on bucket
+    const limit = bucket === 'get' ? RATE_LIMIT_GET_MAX : RATE_LIMIT_WRITE_MAX;
+
+    // Check if limit exceeded
+    if (ipData[bucket].length >= limit) {
+        const oldestRequest = ipData[bucket][0];
+        const retryAfter = Math.ceil((oldestRequest + RATE_LIMIT_WINDOW - now) / 1000);
+        return { allowed: false, retryAfter, bucket };
+    }
+
+    // Record this request
+    ipData[bucket].push(now);
+    return { allowed: true, bucket };
 }
 
 // Check login rate limit (5 attempts per 15 minutes)
@@ -1017,7 +1195,8 @@ function setNoCacheHeaders(res) {
 }
 
 function setSecurityHeaders(res) {
-    res.setHeader('Content-Security-Policy', CSP_POLICY);
+    const headerName = CSP_REPORT_ONLY ? 'Content-Security-Policy-Report-Only' : 'Content-Security-Policy';
+    res.setHeader(headerName, CSP_POLICY);
 }
 
 function sendJsonError(res, error, fallbackStatus = 500) {
@@ -1048,41 +1227,37 @@ function logCampaignValidationError(error, prefix = 'Campaign Validation') {
 }
 
 const server = http.createServer((req, res) => {
-    const clientIP = ((req.headers['x-forwarded-for'] || req.socket.remoteAddress || '')).split(',')[0].trim();
+    const clientIP = getClientIp(req);
     console.log(`[${new Date().toISOString()}] ${req.method} ${req.url} - ${clientIP}`);
 
-    const requestHost = getHostForRequest(req);
-    const enforcingHttps = FORCE_HTTPS && !shouldSkipHttps(requestHost, clientIP);
-    const requestIsSecure = isSecureRequest(req);
-
-    if (enforcingHttps) {
-        if (!requestIsSecure) {
-            const redirectHost = requestHost || req.headers.host;
-            if (redirectHost) {
-                const location = `https://${redirectHost}${req.url}`;
-                res.writeHead(301, { Location: location, 'Content-Type': 'text/plain' });
-                return res.end('Redirecting to HTTPS');
-            } else {
-                res.writeHead(400, { 'Content-Type': 'text/plain' });
-                return res.end('HTTPS required');
-            }
-        } else {
-            res.setHeader('Strict-Transport-Security', HSTS_HEADER_VALUE);
-        }
+    const httpsContext = enforceHttpsMiddleware(req, res, clientIP);
+    if (httpsContext.handled) {
+        return;
     }
+    const requestIsSecure = httpsContext.isSecure;
 
     const session = getOrCreateSession(req, res, requestIsSecure);
     req.session = session;
 
     setSecurityHeaders(res);
-    
+
+    // Apply tiered rate limiting for /api/* endpoints (except /api/login which has its own limiter)
     if (req.url.startsWith('/api/')) {
-        const rateLimit = checkRateLimit(clientIP);
+        const rateLimit = checkRateLimit(clientIP, req.method, req.url);
         if (!rateLimit.allowed) {
             setNoCacheHeaders(res);
             res.writeHead(429, { 'Content-Type': 'application/json', 'Retry-After': rateLimit.retryAfter });
-            return res.end(JSON.stringify({ error: 'Too many requests', retryAfter: rateLimit.retryAfter }));
+            return res.end(JSON.stringify({
+                error: 'Too many requests',
+                retryAfter: rateLimit.retryAfter,
+                bucket: rateLimit.bucket
+            }));
         }
+    }
+
+    // Periodically clean old rate limit entries (1% chance per request)
+    if (Math.random() < 0.01) {
+        cleanOldRateLimitEntries();
     }
     
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -1091,6 +1266,35 @@ const server = http.createServer((req, res) => {
     if (req.method === 'OPTIONS') { res.writeHead(200); return res.end(); }
     
     const pathname = new URL(req.url, `http://${req.headers.host}`).pathname;
+    
+    if (pathname === CSP_REPORT_ENDPOINT && req.method === 'POST') {
+        let body = '';
+        req.on('data', chunk => {
+            body += chunk;
+            if (body.length > 1e6) {
+                body = '';
+                req.socket.destroy();
+            }
+        });
+        req.on('end', () => {
+            const contentType = (req.headers['content-type'] || '').split(';')[0].trim();
+            let payload = null;
+            try {
+                if (contentType === 'application/csp-report') {
+                    const parsed = body ? JSON.parse(body) : {};
+                    payload = parsed['csp-report'] || parsed;
+                } else {
+                    payload = body ? JSON.parse(body) : null;
+                }
+            } catch (error) {
+                payload = body ? { raw: body } : null;
+            }
+            logCspReport(payload, req);
+            res.writeHead(204, { 'Content-Type': 'text/plain' });
+            res.end('');
+        });
+        return;
+    }
     
     if (pathname === '/api/csrf-token' && req.method === 'GET') {
         setNoCacheHeaders(res);
