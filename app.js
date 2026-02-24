@@ -392,13 +392,11 @@ function showDropEndedView() {
     const savings = initialPrice - finalPrice;
 
     // Update stats
-    const buyerCountEl = document.getElementById('ended-buyer-count');
     const finalPriceEl = document.getElementById('ended-final-price');
     const savingsEl = document.getElementById('ended-savings');
     const initialPriceEl = document.getElementById('ended-initial-price');
     const currentPriceEl = document.getElementById('ended-current-price');
 
-    if (buyerCountEl) buyerCountEl.textContent = buyers.toLocaleString();
     if (finalPriceEl) finalPriceEl.textContent = '$' + finalPrice;
     if (savingsEl) savingsEl.textContent = '$' + savings;
     if (initialPriceEl) initialPriceEl.textContent = '$' + initialPrice;
