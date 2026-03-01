@@ -48,6 +48,16 @@ html, body {
     min-height: 120px;
 }
 
+.video-section.fullscreen-active {
+    background: #000;
+}
+
+.video-section.fullscreen-active #video-player {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
 #video-player {
     width: 100%;
     height: 100%;
@@ -57,6 +67,66 @@ html, body {
     will-change: transform;
     -webkit-backface-visibility: hidden;
     backface-visibility: hidden;
+}
+
+.video-cta-banner {
+    position: absolute;
+    left: 50%;
+    bottom: 20px;
+    transform: translateX(-50%);
+    padding: 14px 28px;
+    border: none;
+    border-radius: 999px;
+    color: #fff;
+    font-size: 16px;
+    font-weight: 700;
+    background: rgba(17, 24, 39, 0.82);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+    backdrop-filter: blur(6px);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease, transform 0.2s ease;
+    z-index: 5;
+}
+
+.video-cta-banner:active {
+    transform: translateX(-50%) scale(0.98);
+}
+
+.video-section.fullscreen-active .video-cta-banner,
+body.video-fullscreen-active .video-cta-banner {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+body.video-fullscreen-simulated {
+    overflow: hidden;
+    background: #000;
+}
+
+body.video-fullscreen-simulated .video-section {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 999;
+    background: #000;
+}
+
+body.video-fullscreen-simulated .content-section {
+    opacity: 0;
+    pointer-events: none;
+}
+
+@media (min-width: 768px) {
+    .video-cta-banner {
+        display: none;
+    }
 }
 
 /* Brave browser fix for black video screen with ref= parameter */

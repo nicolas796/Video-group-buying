@@ -16,6 +16,15 @@ const loading = document.getElementById('loading');
 const landingView = document.getElementById('landing-view');
 const successView = document.getElementById('success-view');
 const joinForm = document.getElementById('join-form');
+const videoSection = document.querySelector('.video-section');
+const videoCtaBanner = document.getElementById('video-cta-banner');
+
+if (videoCtaBanner) {
+    videoCtaBanner.setAttribute('aria-hidden', 'true');
+}
+
+let usingIOSNativeFullscreen = false;
+let isSimulatedFullscreen = false;
 
 async function init() {
     try {
@@ -60,6 +69,134 @@ function showGenericError(message) {
             <p style="color: #aaa;">${message}</p>
             <button onclick="location.reload()" style="margin-top: 24px; padding: 12px 24px; background: linear-gradient(135deg, #FF4D8F, #FF8F4D); border: none; border-radius: 8px; color: white; font-weight: 600; cursor: pointer;">Try Again</button>
         </div>`;
+}
+
+function isMobileViewport() {
+    if (window.matchMedia && window.matchMedia('(max-width: 1024px)').matches) return true;
+    return /Android|webOS|iPhone|iPad|iPod/i.test(navigator.userAgent);
+}
+
+function isLegacyIOS() {
+    const match = navigator.userAgent.match(/OS (\d+)_/i);
+    if (!match) return false;
+    const major = parseInt(match[1], 10);
+    return /iP(ad|hone|od)/i.test(navigator.userAgent) && major < 16;
+}
+
+function isTouchDevice() {
+    return ('ontouchstart' in window) || navigator.maxTouchPoints > 0 || navigator.msMaxTouchPoints > 0;
+}
+
+function shouldUseMobileFullscreen() {
+    if (!video) return false;
+    if (!landingView || landingView.classList.contains('hidden')) return false;
+    return isMobileViewport() && isTouchDevice();
+}
+
+function isNativeFullscreenActive() {
+    const fullscreenEl = document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement;
+    if (!fullscreenEl) return false;
+    return fullscreenEl === video || fullscreenEl === videoSection;
+}
+
+function setVideoFullscreenClasses(isActive) {
+    if (!videoSection) return;
+    if (videoCtaBanner) {
+        videoCtaBanner.setAttribute('aria-hidden', isActive ? 'false' : 'true');
+    }
+    if (isActive) {
+        videoSection.classList.add('fullscreen-active');
+        document.body.classList.add('video-fullscreen-active');
+    } else {
+        videoSection.classList.remove('fullscreen-active');
+        document.body.classList.remove('video-fullscreen-active');
+        if (!isNativeFullscreenActive()) {
+            document.body.classList.remove('video-fullscreen-simulated');
+            isSimulatedFullscreen = false;
+        }
+    }
+}
+
+async function enterMobileVideoFullscreen() {
+    if (!shouldUseMobileFullscreen() || isNativeFullscreenActive() || isSimulatedFullscreen) return;
+    if (!video) return;
+    try {
+        video.muted = false;
+        usingIOSNativeFullscreen = false;
+        const target = videoSection || video;
+        if (target && target.requestFullscreen) {
+            await target.requestFullscreen();
+            setVideoFullscreenClasses(true);
+            return;
+        }
+        if (video.requestFullscreen) {
+            await video.requestFullscreen();
+            setVideoFullscreenClasses(true);
+            return;
+        }
+        if (video.webkitSupportsFullscreen && typeof video.webkitEnterFullscreen === 'function') {
+            if (isLegacyIOS()) {
+                isSimulatedFullscreen = true;
+                document.body.classList.add('video-fullscreen-simulated');
+                setVideoFullscreenClasses(true);
+                return;
+            }
+            usingIOSNativeFullscreen = true;
+            video.webkitEnterFullscreen();
+            return;
+        }
+        isSimulatedFullscreen = true;
+        document.body.classList.add('video-fullscreen-simulated');
+        setVideoFullscreenClasses(true);
+    } catch (err) {
+        console.error('Failed to enter fullscreen:', err);
+    }
+}
+
+async function exitMobileVideoFullscreen() {
+    try {
+        if (document.fullscreenElement && document.exitFullscreen) {
+            await document.exitFullscreen();
+        } else if (document.webkitFullscreenElement && document.webkitExitFullscreen) {
+            document.webkitExitFullscreen();
+        } else if (usingIOSNativeFullscreen && video && typeof video.webkitExitFullscreen === 'function') {
+            video.webkitExitFullscreen();
+        } else if (isSimulatedFullscreen) {
+            document.body.classList.remove('video-fullscreen-simulated');
+            isSimulatedFullscreen = false;
+        }
+    } catch (err) {
+        console.error('Failed to exit fullscreen:', err);
+    } finally {
+        if (!isNativeFullscreenActive() && !isSimulatedFullscreen) {
+            setVideoFullscreenClasses(false);
+        }
+    }
+}
+
+function handleVideoFullscreenChange() {
+    const active = isNativeFullscreenActive();
+    setVideoFullscreenClasses(active);
+    if (!active && !isSimulatedFullscreen) {
+        document.body.classList.remove('video-fullscreen-active');
+    }
+}
+
+function focusJoinFormAfterFullscreen() {
+    if (landingView) {
+        landingView.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    if (joinForm) {
+        joinForm.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        const firstInput = joinForm.querySelector('input');
+        if (firstInput) {
+            try {
+                firstInput.focus({ preventScroll: true });
+            } catch (err) {
+                firstInput.focus();
+            }
+        }
+    }
 }
 
 function updateMerchantInfo() {
@@ -121,14 +258,17 @@ function initPlayer() {
     
     let hasUnmuted = false;
     
-    // Click on video toggles mute/unmute (instead of pause/play)
-    video.addEventListener('click', (e) => {
+    // Click on video should trigger fullscreen on mobile, mute toggle elsewhere
+    video.addEventListener('click', async (e) => {
         e.preventDefault();
         e.stopPropagation();
-        if (video) {
-            video.muted = !video.muted;
-            hasUnmuted = !video.muted;
+        if (shouldUseMobileFullscreen()) {
+            hasUnmuted = true;
+            await enterMobileVideoFullscreen();
+            return;
         }
+        video.muted = !video.muted;
+        hasUnmuted = !video.muted;
     });
     
     // Unmute on first user interaction anywhere (browser requirement for sound)
@@ -706,6 +846,30 @@ function updateTermsLink() {
     
     // Use client termsUrl if set, otherwise default to /terms.html
     termsLink.href = config.termsUrl || '/terms.html';
+}
+
+['fullscreenchange', 'webkitfullscreenchange', 'mozfullscreenchange', 'MSFullscreenChange'].forEach(eventName => {
+    document.addEventListener(eventName, handleVideoFullscreenChange);
+});
+
+if (video) {
+    video.addEventListener('webkitbeginfullscreen', () => {
+        usingIOSNativeFullscreen = true;
+        setVideoFullscreenClasses(true);
+    });
+    video.addEventListener('webkitendfullscreen', () => {
+        usingIOSNativeFullscreen = false;
+        setVideoFullscreenClasses(false);
+        focusJoinFormAfterFullscreen();
+    });
+}
+
+if (videoCtaBanner) {
+    videoCtaBanner.addEventListener('click', async (e) => {
+        e.preventDefault();
+        await exitMobileVideoFullscreen();
+        setTimeout(focusJoinFormAfterFullscreen, 150);
+    });
 }
 
 document.addEventListener('DOMContentLoaded', init);
