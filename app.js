@@ -18,6 +18,7 @@ const successView = document.getElementById('success-view');
 const joinForm = document.getElementById('join-form');
 const videoSection = document.querySelector('.video-section');
 const videoCtaBanner = document.getElementById('video-cta-banner');
+const videoCloseBtn = document.getElementById('video-close-btn');
 
 if (videoCtaBanner) {
     videoCtaBanner.setAttribute('aria-hidden', 'true');
@@ -104,50 +105,32 @@ function setVideoFullscreenClasses(isActive) {
     if (videoCtaBanner) {
         videoCtaBanner.setAttribute('aria-hidden', isActive ? 'false' : 'true');
     }
+    if (videoCloseBtn) {
+        videoCloseBtn.setAttribute('aria-hidden', isActive ? 'false' : 'true');
+    }
     if (isActive) {
         videoSection.classList.add('fullscreen-active');
         document.body.classList.add('video-fullscreen-active');
     } else {
         videoSection.classList.remove('fullscreen-active');
         document.body.classList.remove('video-fullscreen-active');
-        if (!isNativeFullscreenActive()) {
-            document.body.classList.remove('video-fullscreen-simulated');
-            isSimulatedFullscreen = false;
-        }
     }
 }
 
 async function enterMobileVideoFullscreen() {
-    if (!shouldUseMobileFullscreen() || isNativeFullscreenActive() || isSimulatedFullscreen) return;
+    if (!shouldUseMobileFullscreen() || isSimulatedFullscreen) return;
     if (!video) return;
     try {
         video.muted = false;
-        usingIOSNativeFullscreen = false;
-        const target = videoSection || video;
-        if (target && target.requestFullscreen) {
-            await target.requestFullscreen();
-            setVideoFullscreenClasses(true);
-            return;
-        }
-        if (video.requestFullscreen) {
-            await video.requestFullscreen();
-            setVideoFullscreenClasses(true);
-            return;
-        }
-        if (video.webkitSupportsFullscreen && typeof video.webkitEnterFullscreen === 'function') {
-            if (isLegacyIOS()) {
-                isSimulatedFullscreen = true;
-                document.body.classList.add('video-fullscreen-simulated');
-                setVideoFullscreenClasses(true);
-                return;
-            }
-            usingIOSNativeFullscreen = true;
-            video.webkitEnterFullscreen();
-            return;
-        }
+        // Always use simulated (CSS-based) fullscreen on mobile so we can show
+        // the "Get the Deal" overlay button. Native fullscreen APIs (especially
+        // iOS webkitEnterFullscreen) take over the screen with the browser's own
+        // player and prevent custom overlays from appearing.
         isSimulatedFullscreen = true;
         document.body.classList.add('video-fullscreen-simulated');
         setVideoFullscreenClasses(true);
+        // Hide native controls in fullscreen to avoid tap conflicts
+        video.controls = false;
     } catch (err) {
         console.error('Failed to enter fullscreen:', err);
     }
@@ -159,18 +142,17 @@ async function exitMobileVideoFullscreen() {
             await document.exitFullscreen();
         } else if (document.webkitFullscreenElement && document.webkitExitFullscreen) {
             document.webkitExitFullscreen();
-        } else if (usingIOSNativeFullscreen && video && typeof video.webkitExitFullscreen === 'function') {
-            video.webkitExitFullscreen();
-        } else if (isSimulatedFullscreen) {
+        }
+        if (isSimulatedFullscreen) {
             document.body.classList.remove('video-fullscreen-simulated');
             isSimulatedFullscreen = false;
         }
     } catch (err) {
         console.error('Failed to exit fullscreen:', err);
     } finally {
-        if (!isNativeFullscreenActive() && !isSimulatedFullscreen) {
-            setVideoFullscreenClasses(false);
-        }
+        setVideoFullscreenClasses(false);
+        // Restore native controls after exiting fullscreen
+        if (video) video.controls = true;
     }
 }
 
@@ -869,6 +851,13 @@ if (videoCtaBanner) {
         e.preventDefault();
         await exitMobileVideoFullscreen();
         setTimeout(focusJoinFormAfterFullscreen, 150);
+    });
+}
+
+if (videoCloseBtn) {
+    videoCloseBtn.addEventListener('click', async (e) => {
+        e.preventDefault();
+        await exitMobileVideoFullscreen();
     });
 }
 

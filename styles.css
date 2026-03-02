@@ -52,12 +52,6 @@ html, body {
     background: #000;
 }
 
-.video-section.fullscreen-active #video-player {
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-}
-
 #video-player {
     width: 100%;
     height: 100%;
@@ -69,20 +63,49 @@ html, body {
     backface-visibility: hidden;
 }
 
+/* Close button - hidden by default, shown in fullscreen */
+.video-close-btn {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    width: 40px;
+    height: 40px;
+    border: none;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.6);
+    color: #fff;
+    font-size: 24px;
+    line-height: 1;
+    cursor: pointer;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+    z-index: 1001;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+}
+
+.video-close-btn:active {
+    background: rgba(0, 0, 0, 0.8);
+}
+
+/* CTA banner - "Get the Deal" button */
 .video-cta-banner {
     position: absolute;
     left: 50%;
-    bottom: 20px;
+    bottom: 32px;
     transform: translateX(-50%);
-    padding: 14px 28px;
+    padding: 16px 40px;
     border: none;
     border-radius: 999px;
     color: #fff;
-    font-size: 16px;
+    font-size: 18px;
     font-weight: 700;
-    background: rgba(17, 24, 39, 0.82);
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
-    backdrop-filter: blur(6px);
+    background: linear-gradient(135deg, #FF4D8F, #FF8F4D);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
     display: flex;
     align-items: center;
     gap: 8px;
@@ -90,19 +113,22 @@ html, body {
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.25s ease, transform 0.2s ease;
-    z-index: 5;
+    z-index: 1001;
+    white-space: nowrap;
 }
 
 .video-cta-banner:active {
-    transform: translateX(-50%) scale(0.98);
+    transform: translateX(-50%) scale(0.96);
 }
 
-.video-section.fullscreen-active .video-cta-banner,
-body.video-fullscreen-active .video-cta-banner {
+/* Show overlay buttons in simulated fullscreen */
+body.video-fullscreen-simulated .video-cta-banner,
+body.video-fullscreen-simulated .video-close-btn {
     opacity: 1;
     pointer-events: auto;
 }
 
+/* Simulated fullscreen mode */
 body.video-fullscreen-simulated {
     overflow: hidden;
     background: #000;
@@ -118,13 +144,21 @@ body.video-fullscreen-simulated .video-section {
     background: #000;
 }
 
+body.video-fullscreen-simulated .video-section #video-player {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
 body.video-fullscreen-simulated .content-section {
     opacity: 0;
     pointer-events: none;
 }
 
+/* Hide overlay buttons on tablet/desktop */
 @media (min-width: 768px) {
-    .video-cta-banner {
+    .video-cta-banner,
+    .video-close-btn {
         display: none;
     }
 }
