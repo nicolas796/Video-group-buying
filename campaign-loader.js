@@ -64,7 +64,7 @@ const CampaignLoader = (function() {
             : campaignsArray;
         
         const campaign = campaigns[campaignId];
-        if (!campaign) return { success: false, error: 'Campaign not found', campaignId, availableCampaigns: Object.keys(campaigns) };
+        if (!campaign) return { success: false, error: 'Campaign not found', campaignId };
         currentCampaign = { id: campaignId, ...campaign };
         return { success: true, campaign: currentCampaign };
     }
@@ -141,16 +141,7 @@ const CampaignLoader = (function() {
                 <div style="font-size: 64px; margin-bottom: 20px;">🔍</div>
                 <h1 style="font-size: 24px; margin-bottom: 16px; color: #fff;">Campaign Not Found</h1>
                 <p style="color: #aaa; margin-bottom: 24px; line-height: 1.6;">We couldn't find the campaign you're looking for.<br>The link may be expired or incorrect.</p>
-                ${errorData.availableCampaigns ? `
-                <div style="margin-top: 32px; padding: 20px; background: rgba(255,255,255,0.05); border-radius: 12px;">
-                    <p style="color: #888; margin-bottom: 16px;">Available campaigns:</p>
-                    <div style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: center;">
-                        ${errorData.availableCampaigns.map(id => `
-                            <a href="?v=${id}" style="display: inline-block; padding: 10px 20px; background: linear-gradient(135deg, #FF4D8F, #FF8F4D); color: white; text-decoration: none; border-radius: 8px; font-weight: 600;">${id}</a>
-                        `).join('')}
-                    </div>
-                </div>` : ''}
-                <p style="margin-top: 32px; color: #666; font-size: 14px;">Campaign ID: <code style="background: rgba(255,255,255,0.1); padding: 4px 8px; border-radius: 4px;">${errorData.campaignId || 'none'}</code></p>
+                <p style="margin-top: 32px; color: #666; font-size: 14px;">Please check your link and try again.</p>
             </div>`;
     }
     
