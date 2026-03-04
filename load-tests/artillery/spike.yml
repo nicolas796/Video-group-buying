@@ -1,0 +1,31 @@
+config:
+  target: "http://localhost:8080"
+  phases:
+    - duration: 10
+      arrivalRate: 0
+      rampTo: 200
+      name: "Spike ramp"
+    - duration: 120
+      arrivalRate: 200
+      name: "Spike sustain"
+    - duration: 60
+      arrivalRate: 30
+      name: "Recovery"
+  processor: "./hooks.js"
+  hooks:
+    beforeScenario: "setupScenario"
+    beforeRequest: "injectHeaders"
+scenarios:
+  - name: "Spike join"
+    flow:
+      - function: "prepareAuth"
+      - function: "generateUser"
+      - post:
+          url: "/api/campaigns/{{ campaignId }}/join"
+          headers:
+            Authorization: "{{ authHeader }}"
+          json:
+            phone: "{{ phone }}"
+            email: "{{ email }}"
+            campaignId: "{{ campaignId }}"
+            referredBy: "{{ loadTestReferrer }}"

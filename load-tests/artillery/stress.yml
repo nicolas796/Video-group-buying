@@ -1,0 +1,45 @@
+config:
+  target: "http://localhost:8080"
+  phases:
+    - duration: 90
+      arrivalRate: 10
+      rampTo: 60
+      name: "Warm-up"
+    - duration: 120
+      arrivalRate: 60
+      rampTo: 120
+      name: "Push to 3x expected"
+    - duration: 120
+      arrivalRate: 150
+      name: "Beyond limit"
+  processor: "./hooks.js"
+  hooks:
+    beforeScenario: "setupScenario"
+    beforeRequest: "injectHeaders"
+scenarios:
+  - name: "Stress join flow"
+    weight: 3
+    flow:
+      - function: "prepareAuth"
+      - function: "generateUser"
+      - post:
+          url: "/api/campaigns/{{ campaignId }}/join"
+          headers:
+            Authorization: "{{ authHeader }}"
+          json:
+            phone: "{{ phone }}"
+            email: "{{ email }}"
+            campaignId: "{{ campaignId }}"
+            referredBy: "{{ loadTestReferrer }}"
+  - name: "Stress fetch"
+    weight: 1
+    flow:
+      - function: "prepareAuth"
+      - get:
+          url: "/api/campaigns"
+          headers:
+            Authorization: "{{ authHeader }}"
+      - get:
+          url: "/api/participants?campaignId={{ campaignId }}"
+          headers:
+            Authorization: "{{ authHeader }}"

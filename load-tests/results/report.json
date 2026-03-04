@@ -1,0 +1,75 @@
+{
+  "generatedAt": "2026-03-04T14:23:32.784Z",
+  "target": "http://localhost:8080",
+  "campaignId": "005EZsfHkpI",
+  "scenarios": [
+    {
+      "name": "baseline",
+      "metrics": {
+        "totalRequests": 94066,
+        "successCount": 0,
+        "errorCount": 0,
+        "errorRate": 0,
+        "latency": {
+          "p50": null,
+          "p95": null,
+          "p99": null
+        }
+      },
+      "pass": true,
+      "issues": [],
+      "reportPath": "/home/baill/.openclaw/workspace/group-buying/load-tests/results/baseline.json"
+    },
+    {
+      "name": "stress",
+      "metrics": {
+        "totalRequests": 32722,
+        "successCount": 0,
+        "errorCount": 0,
+        "errorRate": 0,
+        "latency": {
+          "p50": null,
+          "p95": null,
+          "p99": null
+        }
+      },
+      "pass": true,
+      "issues": [],
+      "reportPath": "/home/baill/.openclaw/workspace/group-buying/load-tests/results/stress.json"
+    },
+    {
+      "name": "spike",
+      "metrics": {
+        "totalRequests": 26800,
+        "successCount": 0,
+        "errorCount": 0,
+        "errorRate": 0,
+        "latency": {
+          "p50": null,
+          "p95": null,
+          "p99": null
+        }
+      },
+      "pass": true,
+      "issues": [],
+      "reportPath": "/home/baill/.openclaw/workspace/group-buying/load-tests/results/spike.json"
+    }
+  ],
+  "dataIntegrity": {
+    "ok": true,
+    "campaigns": [
+      {
+        "campaignId": "005EZsfHkpI",
+        "campaignName": "478 Range Rider Denim Welding Gloves",
+        "initialBuyers": 234,
+        "participantCount": 11066,
+        "uniqueParticipants": 11066,
+        "currentBuyers": 11300,
+        "duplicates": [],
+        "missingReferrers": [],
+        "ok": true
+      }
+    ]
+  },
+  "overallReady": true
+}

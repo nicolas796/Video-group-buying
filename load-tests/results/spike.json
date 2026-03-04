@@ -1,0 +1,456 @@
+{
+  "aggregate": {
+    "counters": {
+      "vusers.created_by_name.Spike join": 26800,
+      "vusers.created": 26800,
+      "http.requests": 26800,
+      "plugins.metrics-by-endpoint./api/campaigns/{{ campaignId }}/join.errors.ETIMEDOUT": 26800,
+      "errors.ETIMEDOUT": 26800,
+      "vusers.failed": 26800
+    },
+    "rates": {
+      "http.request_rate": 130
+    },
+    "firstCounterAt": 1772634012024,
+    "lastCounterAt": 1772634211089,
+    "firstMetricAt": 1772634012024,
+    "lastMetricAt": 1772634211089,
+    "period": 1772634210000,
+    "summaries": {},
+    "histograms": {}
+  },
+  "intermediate": [
+    {
+      "counters": {
+        "vusers.created_by_name.Spike join": 811,
+        "vusers.created": 811,
+        "http.requests": 811
+      },
+      "rates": {
+        "http.request_rate": 106
+      },
+      "http.request_rate": null,
+      "firstCounterAt": 1772634012024,
+      "lastCounterAt": 1772634019998,
+      "firstMetricAt": 1772634012024,
+      "lastMetricAt": 1772634019998,
+      "period": "1772634010000",
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "counters": {
+        "vusers.created_by_name.Spike join": 1999,
+        "vusers.created": 1999,
+        "http.requests": 1998,
+        "plugins.metrics-by-endpoint./api/campaigns/{{ campaignId }}/join.errors.ETIMEDOUT": 811,
+        "errors.ETIMEDOUT": 811,
+        "vusers.failed": 811
+      },
+      "rates": {
+        "http.request_rate": 200
+      },
+      "http.request_rate": null,
+      "firstCounterAt": 1772634020001,
+      "lastCounterAt": 1772634029998,
+      "firstMetricAt": 1772634020001,
+      "lastMetricAt": 1772634029998,
+      "period": "1772634020000",
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "counters": {
+        "vusers.created_by_name.Spike join": 2000,
+        "vusers.created": 2000,
+        "http.requests": 2000,
+        "plugins.metrics-by-endpoint./api/campaigns/{{ campaignId }}/join.errors.ETIMEDOUT": 1998,
+        "errors.ETIMEDOUT": 1998,
+        "vusers.failed": 1998
+      },
+      "rates": {
+        "http.request_rate": 200
+      },
+      "http.request_rate": null,
+      "firstCounterAt": 1772634030001,
+      "lastCounterAt": 1772634039998,
+      "firstMetricAt": 1772634030001,
+      "lastMetricAt": 1772634039998,
+      "period": "1772634030000",
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "counters": {
+        "vusers.created_by_name.Spike join": 2000,
+        "vusers.created": 2000,
+        "http.requests": 2000,
+        "plugins.metrics-by-endpoint./api/campaigns/{{ campaignId }}/join.errors.ETIMEDOUT": 2000,
+        "errors.ETIMEDOUT": 2000,
+        "vusers.failed": 2000
+      },
+      "rates": {
+        "http.request_rate": 200
+      },
+      "http.request_rate": null,
+      "firstCounterAt": 1772634040000,
+      "lastCounterAt": 1772634049998,
+      "firstMetricAt": 1772634040000,
+      "lastMetricAt": 1772634049998,
+      "period": "1772634040000",
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "counters": {
+        "vusers.created_by_name.Spike join": 2000,
+        "vusers.created": 2000,
+        "http.requests": 2000,
+        "plugins.metrics-by-endpoint./api/campaigns/{{ campaignId }}/join.errors.ETIMEDOUT": 1999,
+        "errors.ETIMEDOUT": 1999,
+        "vusers.failed": 1999
+      },
+      "rates": {
+        "http.request_rate": 200
+      },
+      "http.request_rate": null,
+      "firstCounterAt": 1772634050001,
+      "lastCounterAt": 1772634059997,
+      "firstMetricAt": 1772634050001,
+      "lastMetricAt": 1772634059997,
+      "period": "1772634050000",
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "counters": {
+        "vusers.created_by_name.Spike join": 2000,
+        "vusers.created": 2000,
+        "http.requests": 2001,
+        "plugins.metrics-by-endpoint./api/campaigns/{{ campaignId }}/join.errors.ETIMEDOUT": 2001,
+        "errors.ETIMEDOUT": 2001,
+        "vusers.failed": 2001
+      },
+      "rates": {
+        "http.request_rate": 200
+      },
+      "http.request_rate": null,
+      "firstCounterAt": 1772634060000,
+      "lastCounterAt": 1772634069999,
+      "firstMetricAt": 1772634060000,
+      "lastMetricAt": 1772634069999,
+      "period": "1772634060000",
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "counters": {
+        "vusers.created_by_name.Spike join": 2000,
+        "vusers.created": 2000,
+        "http.requests": 2000,
+        "plugins.metrics-by-endpoint./api/campaigns/{{ campaignId }}/join.errors.ETIMEDOUT": 2000,
+        "errors.ETIMEDOUT": 2000,
+        "vusers.failed": 2000
+      },
+      "rates": {
+        "http.request_rate": 200
+      },
+      "http.request_rate": null,
+      "firstCounterAt": 1772634070000,
+      "lastCounterAt": 1772634079999,
+      "firstMetricAt": 1772634070000,
+      "lastMetricAt": 1772634079999,
+      "period": "1772634070000",
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "counters": {
+        "vusers.created_by_name.Spike join": 2000,
+        "vusers.created": 2000,
+        "http.requests": 2000,
+        "plugins.metrics-by-endpoint./api/campaigns/{{ campaignId }}/join.errors.ETIMEDOUT": 2000,
+        "errors.ETIMEDOUT": 2000,
+        "vusers.failed": 2000
+      },
+      "rates": {
+        "http.request_rate": 200
+      },
+      "http.request_rate": null,
+      "firstCounterAt": 1772634080000,
+      "lastCounterAt": 1772634089999,
+      "firstMetricAt": 1772634080000,
+      "lastMetricAt": 1772634089999,
+      "period": "1772634080000",
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "counters": {
+        "vusers.created_by_name.Spike join": 2000,
+        "vusers.created": 2000,
+        "http.requests": 2000,
+        "plugins.metrics-by-endpoint./api/campaigns/{{ campaignId }}/join.errors.ETIMEDOUT": 2000,
+        "errors.ETIMEDOUT": 2000,
+        "vusers.failed": 2000
+      },
+      "rates": {
+        "http.request_rate": 200
+      },
+      "http.request_rate": null,
+      "firstCounterAt": 1772634090000,
+      "lastCounterAt": 1772634099999,
+      "firstMetricAt": 1772634090000,
+      "lastMetricAt": 1772634099999,
+      "period": "1772634090000",
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "counters": {
+        "vusers.created_by_name.Spike join": 2001,
+        "vusers.created": 2001,
+        "http.requests": 2000,
+        "plugins.metrics-by-endpoint./api/campaigns/{{ campaignId }}/join.errors.ETIMEDOUT": 2000,
+        "errors.ETIMEDOUT": 2000,
+        "vusers.failed": 2000
+      },
+      "rates": {
+        "http.request_rate": 200
+      },
+      "http.request_rate": null,
+      "firstCounterAt": 1772634100000,
+      "lastCounterAt": 1772634109999,
+      "firstMetricAt": 1772634100000,
+      "lastMetricAt": 1772634109999,
+      "period": "1772634100000",
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "counters": {
+        "http.requests": 1999,
+        "plugins.metrics-by-endpoint./api/campaigns/{{ campaignId }}/join.errors.ETIMEDOUT": 2000,
+        "errors.ETIMEDOUT": 2000,
+        "vusers.failed": 2000,
+        "vusers.created_by_name.Spike join": 2000,
+        "vusers.created": 2000
+      },
+      "rates": {
+        "http.request_rate": 200
+      },
+      "http.request_rate": null,
+      "firstCounterAt": 1772634110000,
+      "lastCounterAt": 1772634119999,
+      "firstMetricAt": 1772634110000,
+      "lastMetricAt": 1772634119999,
+      "period": "1772634110000",
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "counters": {
+        "http.requests": 2001,
+        "plugins.metrics-by-endpoint./api/campaigns/{{ campaignId }}/join.errors.ETIMEDOUT": 2000,
+        "errors.ETIMEDOUT": 2000,
+        "vusers.failed": 2000,
+        "vusers.created_by_name.Spike join": 2000,
+        "vusers.created": 2000
+      },
+      "rates": {
+        "http.request_rate": 200
+      },
+      "http.request_rate": null,
+      "firstCounterAt": 1772634120001,
+      "lastCounterAt": 1772634129999,
+      "firstMetricAt": 1772634120001,
+      "lastMetricAt": 1772634129999,
+      "period": "1772634120000",
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "counters": {
+        "http.requests": 2000,
+        "plugins.metrics-by-endpoint./api/campaigns/{{ campaignId }}/join.errors.ETIMEDOUT": 2001,
+        "errors.ETIMEDOUT": 2001,
+        "vusers.failed": 2001,
+        "vusers.created_by_name.Spike join": 2000,
+        "vusers.created": 2000
+      },
+      "rates": {
+        "http.request_rate": 200
+      },
+      "http.request_rate": null,
+      "firstCounterAt": 1772634130001,
+      "lastCounterAt": 1772634139999,
+      "firstMetricAt": 1772634130001,
+      "lastMetricAt": 1772634139999,
+      "period": "1772634130000",
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "counters": {
+        "http.requests": 459,
+        "plugins.metrics-by-endpoint./api/campaigns/{{ campaignId }}/join.errors.ETIMEDOUT": 2000,
+        "errors.ETIMEDOUT": 2000,
+        "vusers.failed": 2000,
+        "vusers.created_by_name.Spike join": 458,
+        "vusers.created": 458
+      },
+      "rates": {
+        "http.request_rate": 46
+      },
+      "http.request_rate": null,
+      "firstCounterAt": 1772634140001,
+      "lastCounterAt": 1772634149999,
+      "firstMetricAt": 1772634140001,
+      "lastMetricAt": 1772634149999,
+      "period": "1772634140000",
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "counters": {
+        "plugins.metrics-by-endpoint./api/campaigns/{{ campaignId }}/join.errors.ETIMEDOUT": 459,
+        "errors.ETIMEDOUT": 459,
+        "vusers.failed": 459,
+        "vusers.created_by_name.Spike join": 300,
+        "vusers.created": 300,
+        "http.requests": 300
+      },
+      "rates": {
+        "http.request_rate": 30
+      },
+      "http.request_rate": null,
+      "firstCounterAt": 1772634150001,
+      "lastCounterAt": 1772634159987,
+      "firstMetricAt": 1772634150001,
+      "lastMetricAt": 1772634159987,
+      "period": "1772634150000",
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "counters": {
+        "vusers.created_by_name.Spike join": 300,
+        "vusers.created": 300,
+        "http.requests": 300,
+        "plugins.metrics-by-endpoint./api/campaigns/{{ campaignId }}/join.errors.ETIMEDOUT": 300,
+        "errors.ETIMEDOUT": 300,
+        "vusers.failed": 300
+      },
+      "rates": {
+        "http.request_rate": 30
+      },
+      "http.request_rate": null,
+      "firstCounterAt": 1772634160028,
+      "lastCounterAt": 1772634169988,
+      "firstMetricAt": 1772634160028,
+      "lastMetricAt": 1772634169988,
+      "period": "1772634160000",
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "counters": {
+        "vusers.created_by_name.Spike join": 300,
+        "vusers.created": 300,
+        "http.requests": 300,
+        "plugins.metrics-by-endpoint./api/campaigns/{{ campaignId }}/join.errors.ETIMEDOUT": 300,
+        "errors.ETIMEDOUT": 300,
+        "vusers.failed": 300
+      },
+      "rates": {
+        "http.request_rate": 30
+      },
+      "http.request_rate": null,
+      "firstCounterAt": 1772634170028,
+      "lastCounterAt": 1772634179988,
+      "firstMetricAt": 1772634170028,
+      "lastMetricAt": 1772634179988,
+      "period": "1772634170000",
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "counters": {
+        "vusers.created_by_name.Spike join": 300,
+        "vusers.created": 300,
+        "http.requests": 300,
+        "plugins.metrics-by-endpoint./api/campaigns/{{ campaignId }}/join.errors.ETIMEDOUT": 300,
+        "errors.ETIMEDOUT": 300,
+        "vusers.failed": 300
+      },
+      "rates": {
+        "http.request_rate": 30
+      },
+      "http.request_rate": null,
+      "firstCounterAt": 1772634180028,
+      "lastCounterAt": 1772634189988,
+      "firstMetricAt": 1772634180028,
+      "lastMetricAt": 1772634189988,
+      "period": "1772634180000",
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "counters": {
+        "vusers.created_by_name.Spike join": 300,
+        "vusers.created": 300,
+        "http.requests": 300,
+        "plugins.metrics-by-endpoint./api/campaigns/{{ campaignId }}/join.errors.ETIMEDOUT": 300,
+        "errors.ETIMEDOUT": 300,
+        "vusers.failed": 300
+      },
+      "rates": {
+        "http.request_rate": 30
+      },
+      "http.request_rate": null,
+      "firstCounterAt": 1772634190028,
+      "lastCounterAt": 1772634199987,
+      "firstMetricAt": 1772634190028,
+      "lastMetricAt": 1772634199987,
+      "period": "1772634190000",
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "counters": {
+        "vusers.created_by_name.Spike join": 31,
+        "vusers.created": 31,
+        "http.requests": 31,
+        "plugins.metrics-by-endpoint./api/campaigns/{{ campaignId }}/join.errors.ETIMEDOUT": 300,
+        "errors.ETIMEDOUT": 300,
+        "vusers.failed": 300
+      },
+      "rates": {
+        "http.request_rate": 31
+      },
+      "http.request_rate": null,
+      "firstCounterAt": 1772634200028,
+      "lastCounterAt": 1772634209988,
+      "firstMetricAt": 1772634200028,
+      "lastMetricAt": 1772634209988,
+      "period": "1772634200000",
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "counters": {
+        "plugins.metrics-by-endpoint./api/campaigns/{{ campaignId }}/join.errors.ETIMEDOUT": 31,
+        "errors.ETIMEDOUT": 31,
+        "vusers.failed": 31
+      },
+      "rates": {},
+      "firstCounterAt": 1772634210030,
+      "lastCounterAt": 1772634211089,
+      "firstMetricAt": 1772634210030,
+      "lastMetricAt": 1772634211089,
+      "period": "1772634210000",
+      "summaries": {},
+      "histograms": {}
+    }
+  ]
+}

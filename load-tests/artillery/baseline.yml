@@ -1,0 +1,36 @@
+config:
+  target: "http://localhost:8080"
+  phases:
+    - duration: 60
+      arrivalRate: 50
+      rampTo: 150
+      name: "Ramp to 150 users"
+    - duration: 240
+      arrivalRate: 150
+      name: "Sustain 150 users"
+  processor: "./hooks.js"
+  hooks:
+    beforeScenario: "setupScenario"
+    beforeRequest: "injectHeaders"
+scenarios:
+  - name: "Baseline join flow"
+    flow:
+      - function: "prepareAuth"
+      - get:
+          url: "/api/campaigns"
+          headers:
+            Authorization: "{{ authHeader }}"
+      - get:
+          url: "/api/participants?campaignId={{ campaignId }}"
+          headers:
+            Authorization: "{{ authHeader }}"
+      - function: "generateUser"
+      - post:
+          url: "/api/campaigns/{{ campaignId }}/join"
+          headers:
+            Authorization: "{{ authHeader }}"
+          json:
+            phone: "{{ phone }}"
+            email: "{{ email }}"
+            campaignId: "{{ campaignId }}"
+            referredBy: "{{ loadTestReferrer }}"
