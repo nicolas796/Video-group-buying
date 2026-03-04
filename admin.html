@@ -6,16 +6,55 @@
     <title>Admin - Group Buying</title>
     <link rel="stylesheet" href="admin.css">
     <style>
-        /* Auth-related styles */
         header {
             display: flex;
             justify-content: space-between;
             align-items: center;
             flex-wrap: wrap;
             gap: 16px;
+            border-bottom: 2px solid #e5e7eb;
+            padding-bottom: 16px;
         }
-        .header-content {
-            flex: 1;
+        .header-content h1 {
+            margin-bottom: 6px;
+        }
+        .header-content p {
+            color: #6b7280;
+            margin: 0;
+        }
+        .user-pill {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            padding: 10px 16px;
+            border-radius: 999px;
+            font-size: 13px;
+            color: #374151;
+        }
+        .user-pill .meta {
+            display: flex;
+            flex-direction: column;
+            line-height: 1.3;
+        }
+        .user-pill strong {
+            font-size: 14px;
+        }
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 12px;
+            font-weight: 600;
+            padding: 4px 10px;
+            border-radius: 999px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .badge-super {
+            background: #ede9fe;
+            color: #5b21b6;
         }
         .btn-logout {
             background: #ef4444;
@@ -36,28 +75,189 @@
             transform: translateY(-1px);
             box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
         }
+        .admin-tabs {
+            display: flex;
+            gap: 12px;
+            margin: 24px 0;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .admin-tabs button {
+            background: none;
+            border: none;
+            padding: 12px 0;
+            font-size: 15px;
+            font-weight: 600;
+            color: #6b7280;
+            cursor: pointer;
+            position: relative;
+        }
+        .admin-tabs button.active {
+            color: #111827;
+        }
+        .admin-tabs button.active::after {
+            content: '';
+            position: absolute;
+            left: 0;
+            right: 0;
+            bottom: -1px;
+            height: 3px;
+            background: #3b82f6;
+            border-radius: 999px;
+        }
+        .tab-panel {
+            display: none;
+        }
+        .tab-panel.active {
+            display: block;
+        }
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+        .section-header p {
+            margin: 4px 0 0;
+            color: #6b7280;
+            font-size: 13px;
+        }
+        .campaign-controls,
+        .table-actions {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+        .table-scroll {
+            width: 100%;
+            overflow-x: auto;
+        }
+        table.responsive-table {
+            min-width: 600px;
+        }
+        .btn-link {
+            background: none;
+            border: none;
+            color: #2563eb;
+            cursor: pointer;
+            font-weight: 600;
+            padding: 0;
+        }
+        .btn-link:disabled {
+            color: #d1d5db;
+            cursor: not-allowed;
+        }
+        .brand-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: #eef2ff;
+            color: #3730a3;
+            padding: 4px 10px;
+            border-radius: 999px;
+            font-size: 12px;
+        }
+        .status-tag {
+            font-size: 12px;
+            padding: 2px 8px;
+            border-radius: 999px;
+            background: #fef3c7;
+            color: #92400e;
+        }
+        .modal.small .modal-content {
+            max-width: 480px;
+        }
+        .modal-form-group {
+            margin-bottom: 16px;
+        }
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            margin-top: 16px;
+        }
+        .hidden {
+            display: none !important;
+        }
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            border: 0;
+        }
+        .badge-muted {
+            background: #f3f4f6;
+            color: #4b5563;
+        }
     </style>
 </head>
 <body>
     <!-- Auth Check Script - runs immediately -->
     <script>
         (function() {
-            const token = localStorage.getItem('adminToken');
+            const TOKEN_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+            const STORAGE_KEYS = {
+                token: 'adminToken',
+                brand: 'adminBrandId',
+                superAdmin: 'adminIsSuperAdmin'
+            };
+
+            function normalizeBase64(token) {
+                if (!token || typeof token !== 'string') return '';
+                let normalized = token.replace(/-/g, '+').replace(/_/g, '/');
+                while (normalized.length % 4) {
+                    normalized += '=';
+                }
+                return normalized;
+            }
+
+            function decodeAuthToken(token) {
+                try {
+                    const decoded = atob(normalizeBase64(token));
+                    return JSON.parse(decoded);
+                } catch (error) {
+                    return null;
+                }
+            }
+
+            function clearStoredAuth() {
+                localStorage.removeItem(STORAGE_KEYS.token);
+                localStorage.removeItem(STORAGE_KEYS.brand);
+                localStorage.removeItem(STORAGE_KEYS.superAdmin);
+                sessionStorage.removeItem(STORAGE_KEYS.brand);
+                sessionStorage.removeItem(STORAGE_KEYS.superAdmin);
+            }
+
+            function persistUserContext(source) {
+                if (!source || typeof source !== 'object') return;
+                const brandId = source.brand_id ?? source.brandId ?? null;
+                const isSuperAdmin = Boolean(source.is_super_admin ?? source.isSuperAdmin);
+
+                const brandValue = brandId || '';
+                localStorage.setItem(STORAGE_KEYS.brand, brandValue);
+                sessionStorage.setItem(STORAGE_KEYS.brand, brandValue);
+                localStorage.setItem(STORAGE_KEYS.superAdmin, isSuperAdmin ? 'true' : 'false');
+                sessionStorage.setItem(STORAGE_KEYS.superAdmin, isSuperAdmin ? 'true' : 'false');
+            }
+
+            const token = localStorage.getItem(STORAGE_KEYS.token);
             if (!token) {
                 window.location.href = 'login.html';
                 return;
             }
-            // Verify token format and expiration
-            try {
-                const payload = JSON.parse(atob(token.split('.')[1]));
-                if (!payload.exp || payload.exp <= Date.now() / 1000) {
-                    localStorage.removeItem('adminToken');
-                    window.location.href = 'login.html';
-                }
-            } catch (e) {
-                localStorage.removeItem('adminToken');
+
+            const payload = decodeAuthToken(token);
+            if (!payload || !payload.timestamp || (Date.now() - payload.timestamp) > TOKEN_MAX_AGE_MS) {
+                clearStoredAuth();
                 window.location.href = 'login.html';
+                return;
             }
+
+            persistUserContext(payload);
         })();
     </script>
     
@@ -67,201 +267,312 @@
                 <h1>🎯 Drop Admin</h1>
                 <p>Configure your group buying campaign</p>
             </div>
-            <button type="button" class="btn-logout" onclick="logout()" title="Logout">
-                🚪 Logout
-            </button>
+            <div class="campaign-controls" style="flex-wrap: wrap; justify-content: flex-end;">
+                <div class="user-pill">
+                    <div class="meta">
+                        <strong id="current-user-email">-</strong>
+                        <span id="current-user-brand">Brand: -</span>
+                    </div>
+                    <span id="super-admin-badge" class="badge badge-super hidden">Super Admin</span>
+                </div>
+                <button type="button" class="btn-logout" onclick="logout()" title="Logout">
+                    🚪 Logout
+                </button>
+            </div>
         </header>
+
+        <nav id="admin-tabs" class="admin-tabs hidden" aria-label="Admin navigation">
+            <button type="button" data-tab="campaigns" class="active">Campaigns</button>
+            <button type="button" data-tab="brands">Brands</button>
+            <button type="button" data-tab="users">Users</button>
+        </nav>
         
-        <!-- Campaign Selector -->
-        <section class="form-section campaign-selector-section">
-            <h2>📁 Campaign</h2>
-            <div class="form-row">
-                <div class="form-group three-quarters">
-                    <label>Select Campaign</label>
-                    <select id="campaign-selector" onchange="onCampaignSelect()">
-                        <option value="">-- Select a campaign --</option>
-                    </select>
-                </div>
-                <div class="form-group quarter">
-                    <label>&nbsp;</label>
-                    <button type="button" class="btn-secondary" onclick="createNewCampaign()">+ New Campaign</button>
-                </div>
-            </div>
-            <div class="campaign-id-display" id="campaign-id-display" style="display: none;">
-                <span class="label">Campaign ID:</span>
-                <code id="current-campaign-id"></code>
-                <span class="url-hint" id="campaign-url-hint"></span>
-            </div>
-        </section>
-        
-        <form id="admin-form" style="display: none;">
-            <input type="hidden" name="csrfToken" id="admin-csrf-token">
-            <!-- Stats Section - AT THE TOP -->
-            <section class="form-section stats">
-                <h2>📊 Live Stats</h2>
-                <div class="stats-grid">
-                    <div class="stat-box">
-                        <span class="stat-label">Total Buyers</span>
-                        <span class="stat-value" id="stat-total-buyers">-</span>
+        <div id="tab-campaigns" class="tab-panel active">
+            <section class="form-section campaigns-overview">
+                <div class="section-header">
+                    <div>
+                        <h2>📁 Campaigns</h2>
+                        <p>Overview of drops across brands</p>
                     </div>
-                    <div class="stat-box">
-                        <span class="stat-label">Real Participants</span>
-                        <span class="stat-value" id="stat-real">-</span>
-                    </div>
-                    <div class="stat-box">
-                        <span class="stat-label">Current Price</span>
-                        <span class="stat-value" id="stat-current-price">-</span>
-                    </div>
-                    <div class="stat-box">
-                        <span class="stat-label">Time Left</span>
-                        <span class="stat-value" id="stat-time-left">-</span>
-                    </div>
-                    <div class="stat-box">
-                        <span class="stat-label">SMS Sent</span>
-                        <span class="stat-value" id="stat-sms-sent">-</span>
-                    </div>
-                    <div class="stat-box">
-                        <span class="stat-label">Expected Revenue</span>
-                        <span class="stat-value" id="stat-expected-revenue">-</span>
+                    <div class="campaign-controls">
+                        <div id="brand-filter-wrapper" class="hidden">
+                            <label for="brand-filter" class="sr-only">Filter by brand</label>
+                            <select id="brand-filter" class="btn-secondary" style="padding: 10px 12px; border-radius: 8px;">
+                                <option value="all">All Brands</option>
+                            </select>
+                        </div>
+                        <button type="button" class="btn-secondary" onclick="createNewCampaign()">+ New Campaign</button>
                     </div>
                 </div>
-                <button type="button" class="btn-secondary" onclick="viewParticipants()">👥 View Participants</button>
-                <button type="button" class="btn-secondary" onclick="downloadParticipants()" id="download-btn" style="margin-left: 10px;">📥 Download Excel</button>
-            </section>
-            
-            <!-- Product Section -->
-            <section class="form-section">
-                <h2>📦 Product</h2>
-                <div class="form-group">
-                    <label>Product Image URL</label>
-                    <input type="url" id="product-image" placeholder="https://...">
-                </div>
-                <div class="form-group">
-                    <label>Product Name</label>
-                    <input type="text" id="product-name" placeholder="Product name">
-                </div>
-                <div class="form-group">
-                    <label>Short Description (HTML supported)</label>
-                    <textarea id="product-description" rows="5" placeholder="e.g., <h4>Product Details</h4><p>Description...</p>"></textarea>
-                </div>
-            </section>
-            
-            <!-- Video Section -->
-            <section class="form-section">
-                <h2>🎥 Video</h2>
-                <div class="form-group">
-                    <label>m3u8 Video URL</label>
-                    <input type="url" id="video-source" placeholder="https://.../playlist.m3u8">
+                <div class="table-scroll" style="margin-top: 16px;">
+                    <table class="responsive-table" id="campaigns-table">
+                        <thead>
+                            <tr>
+                                <th>Campaign</th>
+                                <th>Brand</th>
+                                <th>Price</th>
+                                <th style="width: 120px;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td colspan="4">Loading campaigns...</td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
             </section>
 
-            <!-- Checkout Section -->
-            <section class="form-section">
-                <h2>🛒 Checkout</h2>
-                <div class="form-group">
-                    <label>Checkout URL</label>
-                    <input type="url" id="checkout-url" placeholder="https://shop.example.com/product">
-                    <small>Product purchase URL that buyers will be directed to</small>
-                </div>
-            </section>
-
-            <!-- Terms & Conditions Section -->
-            <section class="form-section">
-                <h2>📋 Legal</h2>
-                <div class="form-group">
-                    <label>Terms & Conditions URL</label>
-                    <input type="url" id="terms-url" placeholder="https://example.com/terms">
-                    <small>Link to your Terms & Conditions page. Displayed on the landing page below the registration form.</small>
-                </div>
-            </section>
-
-            <!-- Twilio SMS Section -->
-            <section class="form-section">
-                <h2>📱 Twilio SMS</h2>
-                <div class="form-group checkbox">
-                    <label>
-                        <input type="checkbox" id="twilio-enabled">
-                        Enable SMS notifications
-                    </label>
-                </div>
-                <div class="form-group">
-                    <label>Account SID</label>
-                    <input type="text" id="twilio-sid" placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx">
-                </div>
-                <div class="form-group">
-                    <label>Auth Token</label>
-                    <input type="password" id="twilio-token" placeholder="your_auth_token">
-                </div>
-                <div class="form-group">
-                    <label>Twilio Phone Number</label>
-                    <input type="text" id="twilio-number" placeholder="+1234567890">
-                    <small>Must be a Twilio number with SMS capability</small>
-                </div>
-                <div class="form-group">
-                    <label>Your Domain (for referral links)</label>
-                    <input type="text" id="domain" placeholder="https://your-domain.com">
-                    <small>Used in SMS messages for referral links</small>
-                </div>
-            </section>
-            
-            <!-- Pricing Section -->
-            <section class="form-section">
-                <h2>💰 Pricing</h2>
+            <!-- Campaign Selector -->
+            <section class="form-section campaign-selector-section">
+                <h2>📁 Campaign</h2>
                 <div class="form-row">
-                    <div class="form-group half">
-                        <label>Initial Price ($)</label>
-                        <input type="number" id="initial-price" min="0" step="0.01">
+                    <div class="form-group three-quarters">
+                        <label>Select Campaign</label>
+                        <select id="campaign-selector" onchange="onCampaignSelect()">
+                            <option value="">-- Select a campaign --</option>
+                        </select>
                     </div>
-                    <div class="form-group half">
-                        <label>Initial Buyers Count</label>
-                        <input type="number" id="initial-buyers" min="0">
+                    <div class="form-group quarter">
+                        <label>&nbsp;</label>
+                        <button type="button" class="btn-secondary" onclick="createNewCampaign()">+ New Campaign</button>
                     </div>
                 </div>
+                <div class="campaign-id-display" id="campaign-id-display" style="display: none;">
+                    <span class="label">Campaign ID:</span>
+                    <code id="current-campaign-id"></code>
+                    <span class="url-hint" id="campaign-url-hint"></span>
+                </div>
+            </section>
+            
+            <form id="admin-form" style="display: none;">
+                <input type="hidden" name="csrfToken" id="admin-csrf-token">
+                <!-- Stats Section - AT THE TOP -->
+                <section class="form-section stats">
+                    <h2>📊 Live Stats</h2>
+                    <div class="stats-grid">
+                        <div class="stat-box">
+                            <span class="stat-label">Total Buyers</span>
+                            <span class="stat-value" id="stat-total-buyers">-</span>
+                        </div>
+                        <div class="stat-box">
+                            <span class="stat-label">Real Participants</span>
+                            <span class="stat-value" id="stat-real">-</span>
+                        </div>
+                        <div class="stat-box">
+                            <span class="stat-label">Current Price</span>
+                            <span class="stat-value" id="stat-current-price">-</span>
+                        </div>
+                        <div class="stat-box">
+                            <span class="stat-label">Time Left</span>
+                            <span class="stat-value" id="stat-time-left">-</span>
+                        </div>
+                        <div class="stat-box">
+                            <span class="stat-label">SMS Sent</span>
+                            <span class="stat-value" id="stat-sms-sent">-</span>
+                        </div>
+                        <div class="stat-box">
+                            <span class="stat-label">Expected Revenue</span>
+                            <span class="stat-value" id="stat-expected-revenue">-</span>
+                        </div>
+                    </div>
+                    <button type="button" class="btn-secondary" onclick="viewParticipants()">👥 View Participants</button>
+                    <button type="button" class="btn-secondary" onclick="downloadParticipants()" id="download-btn" style="margin-left: 10px;">📥 Download Excel</button>
+                </section>
                 
-                <h3>Price Tiers</h3>
-                <div class="tier-header">
-                    <span class="tier-header-label">#</span>
-                    <span class="tier-header-label">Buyers</span>
-                    <span class="tier-header-label">Price ($)</span>
-                    <span class="tier-header-label">Coupon Code</span>
-                    <span class="tier-header-label">Actions</span>
+                <!-- Product Section -->
+                <section class="form-section">
+                    <h2>📦 Product</h2>
+                    <div class="form-group">
+                        <label>Product Image URL</label>
+                        <input type="url" id="product-image" placeholder="https://...">
+                    </div>
+                    <div class="form-group">
+                        <label>Product Name</label>
+                        <input type="text" id="product-name" placeholder="Product name">
+                    </div>
+                    <div class="form-group">
+                        <label>Short Description (HTML supported)</label>
+                        <textarea id="product-description" rows="5" placeholder="e.g., &lt;h4&gt;Product Details&lt;/h4&gt;&lt;p&gt;Description...&lt;/p&gt;"></textarea>
+                    </div>
+                </section>
+                
+                <!-- Video Section -->
+                <section class="form-section">
+                    <h2>🎥 Video</h2>
+                    <div class="form-group">
+                        <label>m3u8 Video URL</label>
+                        <input type="url" id="video-source" placeholder="https://.../playlist.m3u8">
+                    </div>
+                </section>
+
+                <!-- Checkout Section -->
+                <section class="form-section">
+                    <h2>🛒 Checkout</h2>
+                    <div class="form-group">
+                        <label>Checkout URL</label>
+                        <input type="url" id="checkout-url" placeholder="https://shop.example.com/product">
+                        <small>Product purchase URL that buyers will be directed to</small>
+                    </div>
+                </section>
+
+                <!-- Terms & Conditions Section -->
+                <section class="form-section">
+                    <h2>📋 Legal</h2>
+                    <div class="form-group">
+                        <label>Terms & Conditions URL</label>
+                        <input type="url" id="terms-url" placeholder="https://example.com/terms">
+                        <small>Link to your Terms & Conditions page. Displayed on the landing page below the registration form.</small>
+                    </div>
+                </section>
+
+                <!-- Twilio SMS Section -->
+                <section class="form-section">
+                    <h2>📱 Twilio SMS</h2>
+                    <div class="form-group checkbox">
+                        <label>
+                            <input type="checkbox" id="twilio-enabled">
+                            Enable SMS notifications
+                        </label>
+                    </div>
+                    <div class="form-group">
+                        <label>Account SID</label>
+                        <input type="text" id="twilio-sid" placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx">
+                    </div>
+                    <div class="form-group">
+                        <label>Auth Token</label>
+                        <input type="password" id="twilio-token" placeholder="your_auth_token">
+                    </div>
+                    <div class="form-group">
+                        <label>Twilio Phone Number</label>
+                        <input type="text" id="twilio-number" placeholder="+1234567890">
+                        <small>Must be a Twilio number with SMS capability</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Your Domain (for referral links)</label>
+                        <input type="text" id="domain" placeholder="https://your-domain.com">
+                        <small>Used in SMS messages for referral links</small>
+                    </div>
+                </section>
+                
+                <!-- Pricing Section -->
+                <section class="form-section">
+                    <h2>💰 Pricing</h2>
+                    <div class="form-row">
+                        <div class="form-group half">
+                            <label>Initial Price ($)</label>
+                            <input type="number" id="initial-price" min="0" step="0.01">
+                        </div>
+                        <div class="form-group half">
+                            <label>Initial Buyers Count</label>
+                            <input type="number" id="initial-buyers" min="0">
+                        </div>
+                    </div>
+                    
+                    <h3>Price Tiers</h3>
+                    <div class="tier-header">
+                        <span class="tier-header-label">#</span>
+                        <span class="tier-header-label">Buyers</span>
+                        <span class="tier-header-label">Price ($)</span>
+                        <span class="tier-header-label">Coupon Code</span>
+                        <span class="tier-header-label">Actions</span>
+                    </div>
+                    <div id="price-tiers">
+                        <!-- Dynamic tier rows -->
+                    </div>
+                    <button type="button" class="btn-secondary" onclick="addTier()">+ Add Tier</button>
+                </section>
+                
+                <!-- Referral Section -->
+                <section class="form-section">
+                    <h2>🎁 Referral Rewards</h2>
+                    <div class="form-group">
+                        <label>Referrals Needed to Unlock Best Price</label>
+                        <input type="number" id="referrals-needed" min="1" max="10" value="2">
+                        <small>How many friends must join for the referrer to instantly unlock the lowest price</small>
+                    </div>
+                </section>
+                
+                <!-- Countdown Section -->
+                <section class="form-section">
+                    <h2>⏰ Countdown</h2>
+                    <div class="form-group">
+                        <label>End Date & Time</label>
+                        <input type="datetime-local" id="countdown-end">
+                        <small>Times are in your local timezone</small>
+                    </div>
+                </section>
+                
+                <!-- Actions -->
+                <div class="form-actions">
+                    <button type="submit" class="btn-primary">💾 Save Changes</button>
+                    <button type="button" class="btn-secondary" onclick="resetForm()">↺ Reset</button>
+                    <button type="button" class="btn-danger" onclick="deleteCampaign()">🗑️ Delete Campaign</button>
                 </div>
-                <div id="price-tiers">
-                    <!-- Dynamic tier rows -->
-                </div>
-                <button type="button" class="btn-secondary" onclick="addTier()">+ Add Tier</button>
-            </section>
+            </form>
             
-            <!-- Referral Section -->
-            <section class="form-section">
-                <h2>🎁 Referral Rewards</h2>
-                <div class="form-group">
-                    <label>Referrals Needed to Unlock Best Price</label>
-                    <input type="number" id="referrals-needed" min="1" max="10" value="2">
-                    <small>How many friends must join for the referrer to instantly unlock the lowest price</small>
-                </div>
-            </section>
-            
-            <!-- Countdown Section -->
-            <section class="form-section">
-                <h2>⏰ Countdown</h2>
-                <div class="form-group">
-                    <label>End Date & Time</label>
-                    <input type="datetime-local" id="countdown-end">
-                    <small>Times are in your local timezone</small>
-                </div>
-            </section>
-            
-            <!-- Actions -->
-            <div class="form-actions">
-                <button type="submit" class="btn-primary">💾 Save Changes</button>
-                <button type="button" class="btn-secondary" onclick="resetForm()">↺ Reset</button>
-                <button type="button" class="btn-danger" onclick="deleteCampaign()">🗑️ Delete Campaign</button>
+            <div id="no-campaign" style="display: none; text-align: center; padding: 40px;">
+                <p style="color: #888; margin-bottom: 20px;">Select a campaign above or create a new one to get started.</p>
             </div>
-        </form>
-        
-        <div id="no-campaign" style="display: none; text-align: center; padding: 40px;">
-            <p style="color: #888; margin-bottom: 20px;">Select a campaign above or create a new one to get started.</p>
+        </div>
+
+        <div id="tab-brands" class="tab-panel">
+            <section class="form-section">
+                <div class="section-header">
+                    <div>
+                        <h2>🏷️ Brands</h2>
+                        <p>Manage all brands connected to campaigns</p>
+                    </div>
+                    <button type="button" class="btn-secondary" id="create-brand-btn">+ Create Brand</button>
+                </div>
+                <div class="table-scroll" style="margin-top: 16px;">
+                    <table class="responsive-table" id="brands-table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Created</th>
+                                <th>Campaigns</th>
+                                <th style="width: 160px;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td colspan="4">Brands load automatically for super admins.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+
+        <div id="tab-users" class="tab-panel">
+            <section class="form-section">
+                <div class="section-header">
+                    <div>
+                        <h2>👥 Users</h2>
+                        <p>Create users per brand and control access</p>
+                    </div>
+                    <button type="button" class="btn-secondary" id="create-user-btn">+ Create User</button>
+                </div>
+                <div class="table-scroll" style="margin-top: 16px;">
+                    <table class="responsive-table" id="users-table">
+                        <thead>
+                            <tr>
+                                <th>Email</th>
+                                <th>Brand</th>
+                                <th>Super Admin</th>
+                                <th>Created</th>
+                                <th style="width: 160px;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td colspan="5">Users load automatically for super admins.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
         </div>
         
         <div id="toast" class="toast"></div>
@@ -272,7 +583,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h2>Participants</h2>
-                <button class="close-btn" onclick="closeModal()">&times;</button>
+                <button class="close-btn" data-close-modal="participants-modal">&times;</button>
             </div>
             <div class="modal-body">
                 <table id="participants-table">
@@ -288,6 +599,66 @@
                     </thead>
                     <tbody></tbody>
                 </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Brand Modal -->
+    <div id="brand-modal" class="modal hidden small">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="brand-modal-title">Create Brand</h2>
+                <button class="close-btn" data-close-modal="brand-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="brand-form">
+                    <div class="modal-form-group">
+                        <label for="brand-name-input">Brand Name</label>
+                        <input type="text" id="brand-name-input" required placeholder="e.g., Morning Dew">
+                    </div>
+                    <div class="modal-actions">
+                        <button type="button" class="btn-secondary" data-close-modal="brand-modal">Cancel</button>
+                        <button type="submit" class="btn-primary" id="brand-form-submit">Save Brand</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- User Modal -->
+    <div id="user-modal" class="modal hidden small">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="user-modal-title">Create User</h2>
+                <button class="close-btn" data-close-modal="user-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="user-form">
+                    <div class="modal-form-group">
+                        <label for="user-email-input">Email</label>
+                        <input type="email" id="user-email-input" required placeholder="admin@brand.com">
+                    </div>
+                    <div class="modal-form-group" id="user-password-group">
+                        <label for="user-password-input">Password <small>(min 6 characters)</small></label>
+                        <input type="password" id="user-password-input" minlength="6" placeholder="Enter password">
+                    </div>
+                    <div class="modal-form-group">
+                        <label for="user-brand-select">Brand</label>
+                        <select id="user-brand-select" required>
+                            <option value="">Select a brand</option>
+                        </select>
+                    </div>
+                    <div class="modal-form-group checkbox">
+                        <label>
+                            <input type="checkbox" id="user-super-admin-checkbox">
+                            Super Admin
+                        </label>
+                    </div>
+                    <div class="modal-actions">
+                        <button type="button" class="btn-secondary" data-close-modal="user-modal">Cancel</button>
+                        <button type="submit" class="btn-primary" id="user-form-submit">Save User</button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
@@ -409,123 +780,6 @@
         </div>
     </section>
     
-    <style>
-        .sms-flow-section {
-            background: linear-gradient(135deg, #fdf4ff 0%, #fae8ff 100%);
-            border: 2px solid #e9d5ff;
-        }
-        .sms-flow-section h2 {
-            color: #7c3aed;
-        }
-        .sms-flow {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            margin-bottom: 30px;
-        }
-        .sms-flow-item {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-        .sms-flow-trigger {
-            margin-bottom: 8px;
-        }
-        .trigger-badge {
-            display: inline-block;
-            padding: 6px 14px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        .trigger-join {
-            background: #dbeafe;
-            color: #1e40af;
-        }
-        .trigger-reminder {
-            background: #fef3c7;
-            color: #92400e;
-        }
-        .trigger-unlock {
-            background: #d1fae5;
-            color: #065f46;
-        }
-        .trigger-end {
-            background: #fce7f3;
-            color: #9d174d;
-        }
-        .sms-flow-arrow {
-            color: #9ca3af;
-            font-size: 20px;
-            margin: 4px 0;
-        }
-        .sms-flow-card {
-            background: #fff;
-            border-radius: 12px;
-            padding: 16px;
-            width: 100%;
-            max-width: 500px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-            border-left: 4px solid #8b5cf6;
-        }
-        .checkout-card {
-            border-left-color: #10b981;
-            background: linear-gradient(135deg, #ecfdf5 0%, #fff 100%);
-        }
-        .sms-flow-header {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            margin-bottom: 10px;
-        }
-        .sms-icon {
-            font-size: 20px;
-        }
-        .sms-title {
-            font-weight: 600;
-            color: #1f2937;
-            font-size: 15px;
-        }
-        .sms-condition {
-            font-size: 12px;
-            color: #9ca3af;
-            margin-left: auto;
-        }
-        .sms-preview {
-            background: #f9fafb;
-            padding: 12px;
-            border-radius: 8px;
-            font-size: 13px;
-            color: #4b5563;
-            font-style: italic;
-            line-height: 1.5;
-        }
-        .checkout-item {
-            margin-top: 10px;
-        }
-        .sms-subflow {
-            border-top: 2px dashed #d8b4fe;
-            padding-top: 24px;
-        }
-        .sms-subflow h3 {
-            color: #7c3aed;
-            font-size: 14px;
-            margin-bottom: 16px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        .sms-subflow-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-            gap: 16px;
-        }
-        .sms-subflow-grid .sms-flow-card {
-            border-left-color: #6b7280;
-        }
-    </style>
-
     <script src="csrf.js"></script>
     <script src="admin.js"></script>
 </body>

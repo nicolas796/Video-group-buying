@@ -53,9 +53,16 @@ const CampaignLoader = (function() {
     }
     
     async function loadCampaign(campaignId) {
-        const campaigns = await loadAllCampaigns();
-        if (!campaigns) return { success: false, error: 'Failed to load campaigns database' };
+        const data = await loadAllCampaigns();
+        if (!data) return { success: false, error: 'Failed to load campaigns database' };
         if (!campaignId) return { success: false, error: 'No campaign ID provided' };
+        
+        // Handle both array format { campaigns: [...] } and object format { id: {...} }
+        const campaignsArray = data.campaigns || data;
+        const campaigns = Array.isArray(campaignsArray) 
+            ? campaignsArray.reduce((acc, c) => { if (c.id) acc[c.id] = c; return acc; }, {})
+            : campaignsArray;
+        
         const campaign = campaigns[campaignId];
         if (!campaign) return { success: false, error: 'Campaign not found', campaignId, availableCampaigns: Object.keys(campaigns) };
         currentCampaign = { id: campaignId, ...campaign };
@@ -111,10 +118,15 @@ const CampaignLoader = (function() {
     }
     
     async function getAvailableCampaigns() {
-        const campaigns = await loadAllCampaigns();
-        if (!campaigns) return [];
-        return Object.entries(campaigns).map(([id, data]) => ({
-            id,
+        const data = await loadAllCampaigns();
+        if (!data) return [];
+        
+        // Handle both array format { campaigns: [...] } and object format { id: {...} }
+        const campaignsArray = data.campaigns || data;
+        const campaigns = Array.isArray(campaignsArray) ? campaignsArray : Object.values(campaignsArray);
+        
+        return campaigns.filter(c => c && c.id).map((data) => ({
+            id: data.id,
             name: data.productName,
             merchant: data.merchantName,
             price: data.pricing?.initialPrice || data.price || data.originalPrice,

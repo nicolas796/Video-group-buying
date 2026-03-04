@@ -2,7 +2,9 @@
 node_modules/
 
 # Data files (persist on Render but not in git)
-data/participants.json
+data/*.json
+data/*.log
+!data/.gitkeep
 
 # Environment
 .env
