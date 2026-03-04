@@ -473,10 +473,18 @@ function updateBuyerCount() {
     if (countEl) {
         countEl.textContent = count;
         console.log('Updated landing page buyer count to:', count);
+    } else {
+        console.error('buyer-count element NOT FOUND in DOM');
     }
     if (countSuccessEl) {
         countSuccessEl.textContent = count;
         console.log('Updated success page buyer count to:', count);
+    }
+    
+    // Direct DOM check - what's actually in the element now?
+    const checkEl = document.getElementById('buyer-count');
+    if (checkEl) {
+        console.log('Current DOM value:', checkEl.textContent);
     }
 }
 
