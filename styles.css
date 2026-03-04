@@ -349,6 +349,7 @@ body.video-fullscreen-simulated .content-section {
         padding: 24px 20px;
         display: flex;
         flex-direction: column;
+        overflow-x: hidden;
     }
     
     /* ============================================
@@ -359,6 +360,7 @@ body.video-fullscreen-simulated .content-section {
         display: block;
         height: auto;
         overflow-y: auto;
+        overflow-x: hidden;
     }
     
     /* Landing view - keep mobile-like sizing */
@@ -444,13 +446,8 @@ body.video-fullscreen-simulated .content-section {
     
     /* Landing view - join box */
     #landing-view .join-box {
-        padding: 16px;
-        margin-bottom: 12px;
-    }
-    
-    #landing-view .join-box h2 {
-        font-size: 18px;
-        margin-bottom: 12px;
+        padding: 12px 16px;
+        margin-bottom: 8px;
     }
     
     #landing-view .input-group input {
@@ -1151,15 +1148,29 @@ body.video-fullscreen-simulated .content-section {
 
 .tier-labels {
     position: relative;
-    height: 40px;
+    height: 32px;
     font-size: 11px;
     color: #6b7280;
+    margin-top: 4px;
+    overflow: visible;
 }
 
 .tier-label {
     position: absolute;
     text-align: center;
     transform: translateX(-50%);
+    white-space: nowrap;
+    max-width: 80px;
+}
+
+.tier-label:first-child {
+    transform: translateX(0);
+    text-align: left;
+}
+
+.tier-label:last-child {
+    transform: translateX(-100%);
+    text-align: right;
 }
 
 .tier-label .tier-buyers {
