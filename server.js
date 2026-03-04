@@ -2,13 +2,13 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
-const https = require('https');
 const Ajv = require('ajv');
 const addFormats = require('ajv-formats');
 const bcrypt = require('bcrypt');
 const { loadUsers, loadBrands, saveBrands, loadCampaigns } = require('./data-store');
 const { validateBrandRecord, validateUserRecord, validateCampaignRecord, DataValidationError, resolveCampaignName } = require('./schemas');
 const { createBackupSync, listBackupsSync, resolveBackupPath } = require('./backup-manager');
+const createTwilioClient = require('./twilio-client');
 
 const PORT = process.env.PORT || 8080;
 const NODE_ENV = process.env.NODE_ENV || 'development';
@@ -49,12 +49,13 @@ const DEFAULT_CAMPAIGN_PAGE = 1;
 const DEFAULT_CAMPAIGN_LIMIT = 50;
 const MAX_CAMPAIGN_LIMIT = 100;
 // Tiered rate limiting constants
-const RATE_LIMIT_GET_MAX = 100;        // 100 GET requests per minute
-const RATE_LIMIT_WRITE_MAX = 30;       // 30 POST/PUT/DELETE requests per minute
-const RATE_LIMIT_WINDOW = 60000;       // 1 minute window
+const RATE_LIMIT_GET_MAX = parseInt(process.env.RATE_LIMIT_GET_MAX, 10) || 100;
+const RATE_LIMIT_WRITE_MAX = parseInt(process.env.RATE_LIMIT_WRITE_MAX, 10) || 30;
+const RATE_LIMIT_WINDOW = parseInt(process.env.RATE_LIMIT_WINDOW, 10) || 60000;
 
 // Map to store tiered rate limits: { ip => { get: [...timestamps], write: [...timestamps], lastRequest: timestamp } }
 const tieredRateLimitMap = new Map();
+const twilioClientCache = new Map();
 
 const ALLOWED_COUNTRY_CODES = (process.env.ALLOWED_COUNTRY_CODES || '1')
     .split(',')
@@ -1717,33 +1718,30 @@ function getReferralStatus(referralCode, campaignId = null) {
 
 function isOptedOut(phone) { return (readJson(PATHS.optouts) || []).includes(normalizePhone(phone)); }
 
+function getTwilioClientInstance(config) {
+    const mode = String(process.env.USE_MOCK_TWILIO || '').toLowerCase() === 'true' ? 'mock' : 'real';
+    const key = [mode, config.accountSid, config.authToken, config.phoneNumber].join(':');
+    if (!twilioClientCache.has(key)) {
+        twilioClientCache.set(key, createTwilioClient(config.accountSid, config.authToken, { phoneNumber: config.phoneNumber }));
+    }
+    return twilioClientCache.get(key);
+}
+
 async function sendSMS(to, body, campaignId = null) {
     const campaign = campaignId ? getCampaign(campaignId) : null;
     const twilio = campaign?.twilio || getConfig().twilio || {};
     if (!twilio.enabled || !twilio.accountSid || !twilio.authToken || !twilio.phoneNumber) return { success: false, reason: 'not_configured' };
     if (isOptedOut(to)) return { success: false, reason: 'opted_out' };
-    const postData = new URLSearchParams({ To: to, From: twilio.phoneNumber, Body: body }).toString();
-    const auth = Buffer.from(`${twilio.accountSid}:${twilio.authToken}`).toString('base64');
-    return new Promise((resolve, reject) => {
-        const req = https.request({ hostname: 'api.twilio.com', port: 443, path: `/2010-04-01/Accounts/${twilio.accountSid}/Messages.json`, method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Authorization': `Basic ${auth}`, 'Content-Length': Buffer.byteLength(postData) } }, (res) => {
-            let data = '';
-            res.on('data', chunk => data += chunk);
-            res.on('end', () => {
-                if (res.statusCode >= 200 && res.statusCode < 300) {
-                    // Track successful SMS send
-                    if (campaignId) {
-                        incrementSmsSentCount(campaignId);
-                    }
-                    resolve({ success: true, data: JSON.parse(data) });
-                } else {
-                    reject(new Error(`Twilio error: ${res.statusCode}`));
-                }
-            });
-        });
-        req.on('error', reject);
-        req.write(postData);
-        req.end();
-    });
+    try {
+        const client = getTwilioClientInstance(twilio);
+        const result = await client.messages.create({ to, from: twilio.phoneNumber, body, campaignId });
+        if (campaignId) {
+            incrementSmsSentCount(campaignId);
+        }
+        return { success: true, data: result };
+    } catch (error) {
+        throw error;
+    }
 }
 
 async function handleOptOut(phone) {
@@ -1807,6 +1805,58 @@ function addNotifySubscriber(phone, email) {
     };
     subscribers.push(newSubscriber);
     return writeJson(PATHS.notifySubscribers, subscribers) ? { success: true, subscriber: newSubscriber } : { success: false, error: 'Failed to save' };
+}
+
+async function processJoinSubmission(res, data, campaignIdOverride = null) {
+    if (!data.phone || !isValidPhone(data.phone)) { setNoCacheHeaders(res); res.writeHead(400); return res.end(JSON.stringify({ error: 'Valid phone required' })); }
+    if (!data.email || !isValidEmail(data.email)) { setNoCacheHeaders(res); res.writeHead(400); return res.end(JSON.stringify({ error: 'Valid email required' })); }
+
+    const campaignIdRaw = campaignIdOverride ? String(campaignIdOverride).trim() : (data.campaignId ? String(data.campaignId).trim() : '');
+    if (!campaignIdRaw) { setNoCacheHeaders(res); res.writeHead(400); return res.end(JSON.stringify({ error: 'campaignId is required' })); }
+    if (!isValidCampaignId(campaignIdRaw)) { setNoCacheHeaders(res); res.writeHead(400); return res.end(JSON.stringify({ error: 'Invalid campaign ID format' })); }
+    const campaignId = campaignIdRaw;
+
+    let campaign;
+    try {
+        campaign = getCampaign(campaignId);
+    } catch (error) {
+        return sendJsonError(res, error);
+    }
+    if (!campaign) { setNoCacheHeaders(res); res.writeHead(404); return res.end(JSON.stringify({ error: 'Campaign not found' })); }
+    if (!isCampaignActive(campaign)) { setNoCacheHeaders(res); res.writeHead(403); return res.end(JSON.stringify({ error: 'Campaign is not active' })); }
+
+    const referralCode = data.referredBy ? data.referredBy.trim().toUpperCase() : null;
+    if (referralCode && !isValidReferralCode(referralCode)) { setNoCacheHeaders(res); res.writeHead(400); return res.end(JSON.stringify({ error: 'Invalid referral code' })); }
+
+    const existing = findParticipantByPhone(data.phone, campaignId);
+    if (existing) { setNoCacheHeaders(res); res.writeHead(409); return res.end(JSON.stringify({ error: 'Already joined', alreadyJoined: true, referralCode: existing.referralCode })); }
+
+    let wasUnlocked = false;
+    if (referralCode) {
+        wasUnlocked = hasUnlockedBestPrice(referralCode, campaignId);
+    }
+
+    const participant = addParticipant(data.phone, data.email, referralCode, campaignId);
+    if (!participant) { setNoCacheHeaders(res); res.writeHead(500); return res.end(JSON.stringify({ error: 'Failed to save' })); }
+    sendWelcomeSMS(participant.phone || data.phone, participant.referralCode, campaignId);
+
+    let referrerUnlocked = false;
+    if (referralCode) {
+        const newCount = getReferralCount(referralCode, campaignId);
+        const needed = Math.min(campaign?.referralsNeeded || campaign?.sharesRequired || DEFAULT_REFERRALS_NEEDED, MAX_REFERRALS);
+        referrerUnlocked = newCount >= needed;
+
+        if (referrerUnlocked && !wasUnlocked) {
+            const referrer = getParticipants(campaignId).find(p => p.referralCode === referralCode);
+            if (referrer) {
+                sendUnlockSMS(referrer.phone, referralCode, campaignId);
+            }
+        }
+    }
+
+    setNoCacheHeaders(res);
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    return res.end(JSON.stringify({ success: true, referralCode: participant.referralCode, referrerUnlocked }));
 }
 
 async function sendWelcomeSMS(phone, referralCode, campaignId = null) {
@@ -1927,8 +1977,8 @@ function enforceHttpsMiddleware(req, res, clientIP = null) {
 }
 
 // Login rate limiting: 5 attempts per 15 minutes
-const LOGIN_RATE_LIMIT_MAX = 5;
-const LOGIN_RATE_LIMIT_WINDOW = 15 * 60 * 1000; // 15 minutes
+const LOGIN_RATE_LIMIT_MAX = parseInt(process.env.LOGIN_RATE_LIMIT_MAX, 10) || 5;
+const LOGIN_RATE_LIMIT_WINDOW = parseInt(process.env.LOGIN_RATE_LIMIT_WINDOW, 10) || (15 * 60 * 1000); // 15 minutes
 
 // Track campaigns that have had reminder SMS sent (to avoid duplicates)
 const reminderSentCampaigns = new Set();
@@ -3303,55 +3353,37 @@ const server = http.createServer((req, res) => {
                 const data = JSON.parse(body);
                 if (!enforceCsrf(req, res, data?.csrfToken)) return;
                 delete data.csrfToken;
-                if (!data.phone || !isValidPhone(data.phone)) { setNoCacheHeaders(res); res.writeHead(400); return res.end(JSON.stringify({ error: 'Valid phone required' })); }
-                if (!data.email || !isValidEmail(data.email)) { setNoCacheHeaders(res); res.writeHead(400); return res.end(JSON.stringify({ error: 'Valid email required' })); }
-
-                const campaignIdRaw = data.campaignId ? String(data.campaignId).trim() : '';
-                if (!campaignIdRaw) { setNoCacheHeaders(res); res.writeHead(400); return res.end(JSON.stringify({ error: 'campaignId is required' })); }
-                if (!isValidCampaignId(campaignIdRaw)) { setNoCacheHeaders(res); res.writeHead(400); return res.end(JSON.stringify({ error: 'Invalid campaign ID format' })); }
-                const campaignId = campaignIdRaw;
-                let campaign;
-                try {
-                    campaign = getCampaign(campaignId);
-                } catch (error) {
-                    return sendJsonError(res, error);
-                }
-                if (!campaign) { setNoCacheHeaders(res); res.writeHead(404); return res.end(JSON.stringify({ error: 'Campaign not found' })); }
-                if (!isCampaignActive(campaign)) { setNoCacheHeaders(res); res.writeHead(403); return res.end(JSON.stringify({ error: 'Campaign is not active' })); }
-
-                const referralCode = data.referredBy ? data.referredBy.trim().toUpperCase() : null;
-                if (referralCode && !isValidReferralCode(referralCode)) { setNoCacheHeaders(res); res.writeHead(400); return res.end(JSON.stringify({ error: 'Invalid referral code' })); }
-
-                const existing = findParticipantByPhone(data.phone, campaignId);
-                if (existing) { setNoCacheHeaders(res); res.writeHead(409); return res.end(JSON.stringify({ error: 'Already joined', alreadyJoined: true, referralCode: existing.referralCode })); }
-
-                let wasUnlocked = false;
-                if (referralCode) {
-                    wasUnlocked = hasUnlockedBestPrice(referralCode, campaignId);
-                }
-
-                const participant = addParticipant(data.phone, data.email, referralCode, campaignId);
-                if (!participant) { setNoCacheHeaders(res); res.writeHead(500); return res.end(JSON.stringify({ error: 'Failed to save' })); }
-                sendWelcomeSMS(participant.phone || data.phone, participant.referralCode, campaignId);
-
-                let referrerUnlocked = false;
-                if (referralCode) {
-                    const newCount = getReferralCount(referralCode, campaignId);
-                    const needed = Math.min(campaign?.referralsNeeded || campaign?.sharesRequired || DEFAULT_REFERRALS_NEEDED, MAX_REFERRALS);
-                    referrerUnlocked = newCount >= needed;
-
-                    if (referrerUnlocked && !wasUnlocked) {
-                        const referrer = getParticipants(campaignId).find(p => p.referralCode === referralCode);
-                        if (referrer) {
-                            sendUnlockSMS(referrer.phone, referralCode, campaignId);
-                        }
-                    }
-                }
-
+                await processJoinSubmission(res, data);
+            } catch (e) {
                 setNoCacheHeaders(res);
-                res.writeHead(200, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ success: true, referralCode: participant.referralCode, referrerUnlocked }));
-            } catch (e) { setNoCacheHeaders(res); res.writeHead(400); res.end(JSON.stringify({ error: 'Invalid data' })); }
+                res.writeHead(400);
+                res.end(JSON.stringify({ error: 'Invalid data' }));
+            }
+        });
+        return;
+    }
+
+    if (pathname.startsWith('/api/campaigns/') && pathname.endsWith('/join') && req.method === 'POST') {
+        const segments = pathname.split('/').filter(Boolean);
+        const campaignId = segments[2];
+        if (!isValidCampaignId(campaignId)) {
+            setNoCacheHeaders(res);
+            res.writeHead(400);
+            return res.end(JSON.stringify({ error: 'Invalid campaign ID format' }));
+        }
+        let body = '';
+        req.on('data', chunk => body += chunk);
+        req.on('end', async () => {
+            try {
+                const data = body ? JSON.parse(body) : {};
+                if (!enforceCsrf(req, res, data?.csrfToken)) return;
+                delete data.csrfToken;
+                await processJoinSubmission(res, data, campaignId);
+            } catch (error) {
+                setNoCacheHeaders(res);
+                res.writeHead(400);
+                res.end(JSON.stringify({ error: 'Invalid data' }));
+            }
         });
         return;
     }

@@ -9,6 +9,16 @@ services:
         value: production
       - key: PORT
         value: 10000
+      - key: RATE_LIMIT_GET_MAX
+        value: 100
+      - key: RATE_LIMIT_WRITE_MAX
+        value: 50 # Increased from 30 for launch
+      - key: RATE_LIMIT_WINDOW
+        value: 60000
+      - key: LOGIN_RATE_LIMIT_MAX
+        value: 5
+      - key: LOGIN_RATE_LIMIT_WINDOW
+        value: 900000 # 15 minutes in ms
     disk:
       name: data
       mountPath: /opt/render/project/src/data
