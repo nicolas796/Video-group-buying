@@ -458,8 +458,15 @@ function updateBuyerCount() {
     console.log('updateBuyerCount called:', { currentBuyers: config.currentBuyers, initialBuyers: config.initialBuyers, display: count });
     const countEl = document.getElementById('buyer-count');
     const countSuccessEl = document.getElementById('buyer-count-success');
-    if (countEl) countEl.textContent = count;
-    if (countSuccessEl) countSuccessEl.textContent = count;
+    console.log('Elements found:', { countEl: !!countEl, countSuccessEl: !!countSuccessEl });
+    if (countEl) {
+        countEl.textContent = count;
+        console.log('Updated landing page buyer count to:', count);
+    }
+    if (countSuccessEl) {
+        countSuccessEl.textContent = count;
+        console.log('Updated success page buyer count to:', count);
+    }
 }
 
 function startCountdown() {
