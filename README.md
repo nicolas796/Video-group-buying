@@ -151,3 +151,4 @@ Default:
 - 100+ buyers: $40
 - 500+ buyers: $30
 - 1000+ buyers: $20
+# Deploy trigger
