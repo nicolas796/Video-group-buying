@@ -192,6 +192,7 @@ async function loadConfig() {
         const response = await fetch(`/api/campaign/${currentCampaignId}/config?t=${Date.now()}`);
         if (!response.ok) throw new Error('Failed to load config');
         const serverConfig = await response.json();
+        console.log('Server config loaded:', { currentBuyers: serverConfig.currentBuyers, initialBuyers: serverConfig.initialBuyers });
         config.currentBuyers = serverConfig.currentBuyers || config.initialBuyers || 500;
         config.referralsNeeded = serverConfig.referralsNeeded || config.referralsNeeded || 2;
         referralsNeeded = config.referralsNeeded;
@@ -204,6 +205,7 @@ async function loadConfig() {
             const response = await fetch(`/api/campaign/${currentCampaignId}/buyers?t=${Date.now()}`);
             if (response.ok) {
                 const data = await response.json();
+                console.log('Buyers endpoint loaded:', { currentBuyers: data.currentBuyers });
                 config.currentBuyers = data.currentBuyers || config.initialBuyers || 500;
                 recalculateDiscount();
             }
@@ -453,6 +455,7 @@ function updateProgressDisplay(barId, markersId, labelsId, progress, currentPric
 
 function updateBuyerCount() {
     const count = (config.currentBuyers || config.initialBuyers || 0).toLocaleString();
+    console.log('updateBuyerCount called:', { currentBuyers: config.currentBuyers, initialBuyers: config.initialBuyers, display: count });
     const countEl = document.getElementById('buyer-count');
     const countSuccessEl = document.getElementById('buyer-count-success');
     if (countEl) countEl.textContent = count;
