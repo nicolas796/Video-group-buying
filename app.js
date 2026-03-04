@@ -190,10 +190,21 @@ function updateMerchantInfo() {
 async function loadConfig() {
     try {
         const response = await fetch(`/api/campaign/${currentCampaignId}/config?t=${Date.now()}`);
+        console.log('Config API response status:', response.status);
         if (!response.ok) throw new Error('Failed to load config');
         const serverConfig = await response.json();
-        console.log('Server config loaded:', { currentBuyers: serverConfig.currentBuyers, initialBuyers: serverConfig.initialBuyers });
-        config.currentBuyers = serverConfig.currentBuyers || config.initialBuyers || 500;
+        console.log('Server config raw:', serverConfig);
+        console.log('Server config currentBuyers:', serverConfig.currentBuyers, 'type:', typeof serverConfig.currentBuyers);
+        
+        // Only use fallback if currentBuyers is undefined/null, not if it's 0
+        if (serverConfig.currentBuyers !== undefined && serverConfig.currentBuyers !== null) {
+            config.currentBuyers = serverConfig.currentBuyers;
+            console.log('Using server currentBuyers:', config.currentBuyers);
+        } else {
+            config.currentBuyers = config.initialBuyers || 500;
+            console.log('Fallback to initialBuyers:', config.currentBuyers);
+        }
+        
         config.referralsNeeded = serverConfig.referralsNeeded || config.referralsNeeded || 2;
         referralsNeeded = config.referralsNeeded;
         
@@ -206,7 +217,7 @@ async function loadConfig() {
             if (response.ok) {
                 const data = await response.json();
                 console.log('Buyers endpoint loaded:', { currentBuyers: data.currentBuyers });
-                config.currentBuyers = data.currentBuyers || config.initialBuyers || 500;
+                config.currentBuyers = data.currentBuyers !== undefined ? data.currentBuyers : (config.initialBuyers || 500);
                 recalculateDiscount();
             }
         } catch (err) {
