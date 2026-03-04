@@ -188,39 +188,43 @@ function updateMerchantInfo() {
 }
 
 async function loadConfig() {
+    const timestamp = Date.now();
     try {
-        const response = await fetch(`/api/campaign/${currentCampaignId}/config?t=${Date.now()}`);
-        console.log('Config API response status:', response.status);
-        if (!response.ok) throw new Error('Failed to load config');
-        const serverConfig = await response.json();
-        console.log('Server config raw:', serverConfig);
-        console.log('Server config currentBuyers:', serverConfig.currentBuyers, 'type:', typeof serverConfig.currentBuyers);
-        
-        // Only use fallback if currentBuyers is undefined/null, not if it's 0
-        if (serverConfig.currentBuyers !== undefined && serverConfig.currentBuyers !== null) {
-            config.currentBuyers = serverConfig.currentBuyers;
-            console.log('Using server currentBuyers:', config.currentBuyers);
+        const response = await fetch(`/api/public/campaign/${currentCampaignId}/buyers?t=${timestamp}`, { credentials: 'same-origin' });
+        console.log('Public buyers API response status:', response.status);
+        if (!response.ok) throw new Error(`Failed to load buyer stats (${response.status})`);
+        const stats = await response.json();
+        console.log('Public buyers payload:', stats);
+
+        if (typeof stats.currentBuyers === 'number') {
+            config.currentBuyers = stats.currentBuyers;
         } else {
             config.currentBuyers = config.initialBuyers || 500;
-            console.log('Fallback to initialBuyers:', config.currentBuyers);
         }
-        
-        config.referralsNeeded = serverConfig.referralsNeeded || config.referralsNeeded || 2;
-        referralsNeeded = config.referralsNeeded;
-        
-        // Recalculate current price and discount based on updated buyer count
+
+        if (typeof stats.referralsNeeded === 'number') {
+            config.referralsNeeded = stats.referralsNeeded;
+            referralsNeeded = config.referralsNeeded;
+        }
+
         recalculateDiscount();
     } catch (e) {
-        console.error('Failed to load config:', e);
+        console.error('Failed to load public buyer stats:', e);
+        // Fallback to authenticated admin endpoint if available
         try {
-            const response = await fetch(`/api/campaign/${currentCampaignId}/buyers?t=${Date.now()}`);
-            if (response.ok) {
-                const data = await response.json();
-                console.log('Buyers endpoint loaded:', { currentBuyers: data.currentBuyers });
-                config.currentBuyers = data.currentBuyers !== undefined ? data.currentBuyers : (config.initialBuyers || 500);
-                recalculateDiscount();
+            const response = await fetch(`/api/campaign/${currentCampaignId}/config?t=${timestamp}`, { credentials: 'same-origin' });
+            if (!response.ok) throw new Error('Fallback config endpoint failed');
+            const serverConfig = await response.json();
+            if (serverConfig.currentBuyers !== undefined && serverConfig.currentBuyers !== null) {
+                config.currentBuyers = serverConfig.currentBuyers;
+            } else {
+                config.currentBuyers = config.initialBuyers || 500;
             }
-        } catch (err) {
+            config.referralsNeeded = serverConfig.referralsNeeded || config.referralsNeeded || 2;
+            referralsNeeded = config.referralsNeeded;
+            recalculateDiscount();
+        } catch (fallbackError) {
+            console.error('Fallback config load failed:', fallbackError);
             console.log('Using initial buyer count:', config.initialBuyers);
         }
     }

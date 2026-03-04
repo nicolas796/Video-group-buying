@@ -1617,6 +1617,69 @@ function getCampaignConfig(campaignId) {
     };
 }
 
+function sanitizePriceTiers(sourceTiers = []) {
+    return (sourceTiers || []).map(tier => {
+        const buyers = Number(tier?.buyers);
+        const price = Number(tier?.price);
+        return {
+            buyers: Number.isFinite(buyers) ? buyers : 0,
+            price: Number.isFinite(price) ? price : 0,
+            couponCode: typeof tier?.couponCode === 'string' ? tier.couponCode : ''
+        };
+    });
+}
+
+function buildPublicCampaignPayload(campaignId) {
+    const campaign = getCampaign(campaignId);
+    if (!campaign) return null;
+    const pricing = campaign.pricing || {};
+    const tiers = sanitizePriceTiers(pricing.tiers || campaign.priceTiers || []);
+    const initialBuyers = pricing.initialBuyers || campaign.initialBuyers || 0;
+    const initialPrice = pricing.initialPrice || campaign.originalPrice || 0;
+    const participants = getParticipants(campaignId);
+
+    return {
+        id: campaign.id,
+        productName: campaign.productName || '',
+        productDescription: campaign.productDescription || campaign.description || '',
+        description: campaign.description || campaign.productDescription || '',
+        productImage: campaign.productImage || campaign.imageUrl || '',
+        imageUrl: campaign.imageUrl || campaign.productImage || '',
+        videoUrl: campaign.videoUrl || '',
+        merchantName: campaign.merchantName || '',
+        merchantLogo: campaign.merchantLogo || '',
+        referralsNeeded: campaign.referralsNeeded || campaign.sharesRequired || DEFAULT_REFERRALS_NEEDED,
+        sharesRequired: campaign.referralsNeeded || campaign.sharesRequired || DEFAULT_REFERRALS_NEEDED,
+        countdownEnd: campaign.countdownEnd || null,
+        termsUrl: campaign.termsUrl || '',
+        pricing: {
+            initialPrice,
+            initialBuyers,
+            checkoutUrl: pricing.checkoutUrl || campaign.checkoutUrl || '',
+            tiers
+        },
+        priceTiers: tiers,
+        price: campaign.price || initialPrice,
+        originalPrice: campaign.originalPrice || initialPrice,
+        initialBuyers,
+        currentBuyers: initialBuyers + participants.length,
+        lastUpdated: new Date().toISOString()
+    };
+}
+
+function buildPublicBuyerStats(campaignId) {
+    const campaign = getCampaign(campaignId);
+    if (!campaign) return null;
+    const pricing = campaign.pricing || {};
+    const initialBuyers = pricing.initialBuyers || campaign.initialBuyers || 0;
+    return {
+        campaignId,
+        currentBuyers: initialBuyers + getParticipants(campaignId).length,
+        referralsNeeded: campaign.referralsNeeded || campaign.sharesRequired || DEFAULT_REFERRALS_NEEDED,
+        updatedAt: new Date().toISOString()
+    };
+}
+
 function getConfig() {
     const config = readJson(PATHS.config) || DEFAULT_CONFIG;
     config.currentBuyers = (config.initialBuyers || 0) + getParticipants().length;
@@ -2336,6 +2399,7 @@ const server = http.createServer((req, res) => {
     if (req.method === 'OPTIONS') { res.writeHead(200); return res.end(); }
     
     const pathname = new URL(req.url, `http://${req.headers.host}`).pathname;
+    const pathSegments = pathname.split('/').filter(Boolean);
     
     if (pathname === CSP_REPORT_ENDPOINT && req.method === 'POST') {
         let body = '';
@@ -3318,6 +3382,46 @@ const server = http.createServer((req, res) => {
             } catch (e) { setNoCacheHeaders(res); res.writeHead(400); res.end(JSON.stringify({ error: 'Invalid data' })); }
         });
         return;
+    }
+    
+    if (pathSegments[0] === 'api' && pathSegments[1] === 'public' && pathSegments[2] === 'campaign' && req.method === 'GET') {
+        const campaignId = pathSegments[3] || '';
+        const subresource = pathSegments[4] || null;
+        if (!campaignId || !isValidCampaignId(campaignId)) {
+            setNoCacheHeaders(res);
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            return res.end(JSON.stringify({ error: 'Invalid campaign ID format' }));
+        }
+        try {
+            let payload;
+            if (!subresource) {
+                payload = buildPublicCampaignPayload(campaignId);
+                if (!payload) {
+                    setNoCacheHeaders(res);
+                    res.writeHead(404, { 'Content-Type': 'application/json' });
+                    return res.end(JSON.stringify({ error: 'Campaign not found' }));
+                }
+                setNoCacheHeaders(res);
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                return res.end(JSON.stringify({ campaign: payload }));
+            }
+            if (subresource === 'buyers') {
+                payload = buildPublicBuyerStats(campaignId);
+                if (!payload) {
+                    setNoCacheHeaders(res);
+                    res.writeHead(404, { 'Content-Type': 'application/json' });
+                    return res.end(JSON.stringify({ error: 'Campaign not found' }));
+                }
+                setNoCacheHeaders(res);
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                return res.end(JSON.stringify(payload));
+            }
+            setNoCacheHeaders(res);
+            res.writeHead(404, { 'Content-Type': 'application/json' });
+            return res.end(JSON.stringify({ error: 'Not found' }));
+        } catch (error) {
+            return sendJsonError(res, error);
+        }
     }
     
     if (pathname === '/api/participants' && req.method === 'GET') {

@@ -1,11 +1,10 @@
 /**
  * Campaign Loader Module
- * Handles loading campaign data from campaigns.json based on URL parameter
+ * Handles loading campaign data per campaign ID via the public API
  */
 
 const CampaignLoader = (function() {
-    let campaignsCache = null;
-    let cacheTimestamp = 0;
+    const cache = new Map(); // { campaignId: { data, timestamp } }
     let currentCampaign = null;
     const CACHE_TTL = 30000; // 30 seconds cache TTL
     
@@ -27,46 +26,46 @@ const CampaignLoader = (function() {
         return new URLSearchParams(window.location.search).get('v');
     }
     
-    async function loadAllCampaigns() {
+    async function fetchCampaignFromServer(campaignId, { bypassCache = false } = {}) {
+        if (!campaignId) return null;
         const now = Date.now();
-        
-        // Use cache if it's still fresh (within TTL)
-        if (campaignsCache && (now - cacheTimestamp) < CACHE_TTL) {
-            return campaignsCache;
-        }
-        
-        try {
-            const response = await fetch(`/data/campaigns.json?t=${now}`);
-            if (!response.ok) throw new Error(`Failed to load: ${response.status}`);
-            campaignsCache = await response.json();
-            cacheTimestamp = now;
-            return campaignsCache;
-        } catch (error) {
-            console.error('CampaignLoader: Error loading campaigns:', error);
-            // Return stale cache as fallback instead of null
-            if (campaignsCache) {
-                console.log('CampaignLoader: Using stale cache as fallback');
-                return campaignsCache;
+        if (!bypassCache && cache.has(campaignId)) {
+            const cached = cache.get(campaignId);
+            if ((now - cached.timestamp) < CACHE_TTL) {
+                return cached.data;
             }
-            return null;
         }
+
+        const url = `/api/public/campaign/${campaignId}?t=${now}`;
+        const response = await fetch(url, { credentials: 'same-origin' });
+        if (!response.ok) {
+            throw new Error(`Failed to load campaign ${campaignId}: ${response.status}`);
+        }
+        const payload = await response.json();
+        const campaign = payload?.campaign || payload;
+        if (!campaign || !campaign.id) {
+            throw new Error('Campaign payload missing required fields');
+        }
+        cache.set(campaignId, { data: campaign, timestamp: now });
+        return campaign;
     }
-    
+
     async function loadCampaign(campaignId) {
-        const data = await loadAllCampaigns();
-        if (!data) return { success: false, error: 'Failed to load campaigns database' };
         if (!campaignId) return { success: false, error: 'No campaign ID provided' };
-        
-        // Handle both array format { campaigns: [...] } and object format { id: {...} }
-        const campaignsArray = data.campaigns || data;
-        const campaigns = Array.isArray(campaignsArray) 
-            ? campaignsArray.reduce((acc, c) => { if (c.id) acc[c.id] = c; return acc; }, {})
-            : campaignsArray;
-        
-        const campaign = campaigns[campaignId];
-        if (!campaign) return { success: false, error: 'Campaign not found', campaignId };
-        currentCampaign = { id: campaignId, ...campaign };
-        return { success: true, campaign: currentCampaign };
+        try {
+            const campaign = await fetchCampaignFromServer(campaignId);
+            currentCampaign = { id: campaign.id, ...campaign };
+            return { success: true, campaign: currentCampaign };
+        } catch (error) {
+            console.error('CampaignLoader: Error loading campaign:', error);
+            const cached = cache.get(campaignId);
+            if (cached) {
+                console.log('CampaignLoader: Using cached campaign data');
+                currentCampaign = cached.data;
+                return { success: true, campaign: currentCampaign, stale: true };
+            }
+            return { success: false, error: error.message, campaignId };
+        }
     }
     
     async function loadCampaignFromUrl() {
@@ -83,11 +82,14 @@ const CampaignLoader = (function() {
         const initialBuyers = pricing.initialBuyers || campaign.initialBuyers || 500;
         const initialPrice = pricing.initialPrice || campaign.originalPrice || 80;
         const priceTiers = pricing.tiers || campaign.priceTiers || [];
+        const liveBuyerCount = typeof campaign.currentBuyers === 'number'
+            ? campaign.currentBuyers
+            : initialBuyers;
         
-        // Calculate current price based on initial buyers count
+        // Calculate current price based on live buyer count
         let currentPrice = initialPrice;
         for (const tier of priceTiers) {
-            if (initialBuyers >= tier.buyers) currentPrice = tier.price;
+            if (liveBuyerCount >= tier.buyers) currentPrice = tier.price;
         }
         
         // Calculate discount percentage: ((initial - current) / initial) * 100
@@ -98,12 +100,12 @@ const CampaignLoader = (function() {
         return {
             id: campaign.id,
             campaignId: campaign.id,
-            initialBuyers: initialBuyers,
-            currentBuyers: initialBuyers,
-            initialPrice: initialPrice,
-            currentPrice: currentPrice,
-            discountPercentage: discountPercentage,
-            priceTiers: priceTiers,
+            initialBuyers,
+            currentBuyers: liveBuyerCount,
+            initialPrice,
+            currentPrice,
+            discountPercentage,
+            priceTiers,
             countdownEnd: campaign.countdownEnd || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
             videoSource: campaign.videoUrl || '',
             termsUrl: campaign.termsUrl || '',
@@ -113,25 +115,21 @@ const CampaignLoader = (function() {
                 name: campaign.productName || '',
                 description: campaign.productDescription || campaign.description || ''
             },
-            twilio: campaign.twilio || { enabled: false, accountSid: '', authToken: '', phoneNumber: '', domain: '' }
+            twilio: { enabled: false, accountSid: '', authToken: '', phoneNumber: '', domain: '' }
         };
     }
     
     async function getAvailableCampaigns() {
-        const data = await loadAllCampaigns();
-        if (!data) return [];
-        
-        // Handle both array format { campaigns: [...] } and object format { id: {...} }
-        const campaignsArray = data.campaigns || data;
-        const campaigns = Array.isArray(campaignsArray) ? campaignsArray : Object.values(campaignsArray);
-        
-        return campaigns.filter(c => c && c.id).map((data) => ({
-            id: data.id,
-            name: data.productName,
-            merchant: data.merchantName,
-            price: data.pricing?.initialPrice || data.price || data.originalPrice,
-            originalPrice: data.pricing?.initialPrice || data.originalPrice
-        }));
+        if (currentCampaign) {
+            return [{
+                id: currentCampaign.id,
+                name: currentCampaign.productName,
+                merchant: currentCampaign.merchantName,
+                price: currentCampaign.pricing?.initialPrice || currentCampaign.price || currentCampaign.originalPrice,
+                originalPrice: currentCampaign.pricing?.initialPrice || currentCampaign.originalPrice
+            }];
+        }
+        return [];
     }
     
     function showCampaignError(errorData) {
