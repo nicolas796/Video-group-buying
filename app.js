@@ -440,6 +440,7 @@ function updateProgressDisplay(barId, markersId, labelsId, progress, currentPric
         
         const label = document.createElement('div');
         label.className = 'tier-label';
+        label.style.left = `${position}%`;
         label.innerHTML = `<div class="tier-buyers">${tier.buyers}</div><div class="tier-price">$${tier.price}</div>`;
         labels.appendChild(label);
     });
