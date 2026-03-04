@@ -271,7 +271,7 @@
       "id": "180HigiHWI0",
       "productName": "test",
       "productImage": "https://invicibleskincare.com/cdn/shop/files/Primer_for_Invicible_Skincare_600x.png?v=1757615986",
-      "productDescription": "<h4>Product Details</h4><p>Description coming soon...</p>",
+      "productDescription": "<h4>Product Details</h4><div class=\"product-text\">\n                <p>✓Get visibly <strong>smoother, more radiant</strong> skin in just one application</p><p>✓Enjoy a primer, moisturizer &amp; dark spot corrector, <strong>no 10-step routine</strong></p><p>✓Feel confident knowing it's <strong>safe</strong> enough for post-surgical healing skin</p>\n              </div>",
       "videoUrl": "https://vod.estreamly.com/ivs/v1/592094231790/kdTwdTrnUwpL/2026/2/12/0/30/5mgTV2ByM1yw/media/hls/1080p/playlist.m3u8",
       "twilio": {
         "enabled": false,

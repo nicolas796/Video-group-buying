@@ -396,8 +396,9 @@ function renderProgressBar() {
     
     const landingBar = document.getElementById('progress-bar');
     if (landingBar) landingBar.style.width = `${progress}%`;
-    
+
     updateProgressDisplay('progress-bar-success', 'tier-markers-success', 'tier-labels-success', progress, currentPrice, initialPrice);
+    updateProgressDisplay('progress-bar', 'tier-markers-landing', 'tier-labels-landing', progress, currentPrice, initialPrice);
     
     const currentPriceEl = document.getElementById('current-price');
     const initialPriceEl = document.getElementById('initial-price');

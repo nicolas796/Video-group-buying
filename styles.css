@@ -755,8 +755,8 @@ body.video-fullscreen-simulated .content-section {
     height: 8px;
     background: #e5e7eb;
     border-radius: 4px;
-    overflow: hidden;
     margin-bottom: 6px;
+    position: relative;
 }
 
 .progress-bar {
